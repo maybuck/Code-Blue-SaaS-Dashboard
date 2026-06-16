@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model User {
+  id            Int      @id @default(autoincrement())
+
+  firstName     String
+  lastName      String
+  email         String   @unique
+  passwordHash  String
+
+  isActive      Boolean  @default(true)
+
+  roleId        Int
+  role          Role     @relation(fields: [roleId], references: [id])
+
+  createdCases  Case[]   @relation("CaseCreator")
+  assignedCases Case[]   @relation("CaseAssignee")
+
+  // Cases this user collaborates on (many-to-many assignees).
+  caseAssignments Case[] @relation("CaseAssignees")
+
+  // Activity Timeline
+  activities    CaseActivity[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([roleId])
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+
+  roles       RolePermission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Case {
+  id              Int        @id @default(autoincrement())
+
+  // Case Identity
+  caseNumber      String?    
+
+  // Duplicate Tracking
+  isDuplicate     Boolean    @default(false)
+
+  duplicateOfId   Int?
+  duplicateOf     Case?      @relation("DuplicateCase", fields: [duplicateOfId], references: [id])
+  duplicates      Case[]     @relation("DuplicateCase")
+
+  // Submission Info
+  dateSubmitted   DateTime   @default(now())
+  submittedVia    String?
+
+  // Agency Info
+  policeAgency    String?
+  enteredBy       String?
+
+  agencyId        Int?
+  agency          Agency?    @relation(fields: [agencyId], references: [id])
+
+  // Incident Info
+  incidentDate    DateTime?
+  location        String?
+  suspectName     String?
+  age             Int?
+  incidentSummary String?
+
+  // Case Details
+  title           String?
+  description     String?
+
+  // ✅ STATUS (NOW FROM TABLE)
+  statusId        Int
+  status          Status     @relation(fields: [statusId], references: [id])
+
+  // Media
+  mediaType       String?
+
+  // Completion
+  dateCompleted   DateTime?
+  notes           String?
+  potential       String?
+
+  // Google Drive
+  driveFolderId          String?
+  driveReportsFolderId   String?
+  driveCompletedFolderId String?
+  driveReportsUrl        String?
+  driveCompletedUrl      String?
+
+  // Relations
+  createdById     Int
+  createdBy       User       @relation("CaseCreator", fields: [createdById], references: [id])
+
+  assignedToId    Int?
+  assignedTo      User?      @relation("CaseAssignee", fields: [assignedToId], references: [id])
+
+  assignees       User[]     @relation("CaseAssignees")
+
+  // Timeline
+  activities      CaseActivity[]
+
+  // Audit
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([statusId])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([caseNumber])
+  @@index([suspectName])
+  @@index([duplicateOfId])
+  @@index([agencyId])
+
+  @@map("cases")
+}
+
+model CaseActivity {
+  id          Int      @id @default(autoincrement())
+
+  caseId      Int
+  case        Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id])
+
+  type        String
+
+  message     String   @db.Text
+
+  createdAt   DateTime @default(now())
+
+  @@index([caseId])
+  @@index([userId])
+
+  @@map("case_activities")
+}
+model Agency {
+  id          Int      @id @default(autoincrement()) @map("agency_id")
+  name        String   @unique @map("agency_name")
+  description String?  @map("agency_description")
+  allowed     Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Cases linked to this agency
+  cases       Case[]
+
+  @@map("agencies")
+}
+
+model Status {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  label       String
+  color       String   @default("gray")
+  stage       String?
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+ cases  Case[] 
+
+  @@map("statuses")
+}
