@@ -140,14 +140,14 @@ export class CasesController {
   // Provisions <Suspect> - <caseNumber>/Reports + /CompletedRequests and
   // persists the links on the case for the Case Detail Drive panel.
   // =========================
-  // @Post(':id/drive/link')
-  // @Permissions('case.update.own', 'case.update.all')
-  // linkDrive(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @Request() req: any,
-  // ) {
-  //   return this.cases.linkDriveFolders(id, req.user);
-  // }
+  @Post(':id/drive/link')
+  @Permissions('case.update.own', 'case.update.all')
+  linkDrive(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    return this.cases.linkDriveFolders(id, req.user);
+  }
 
   // =========================
   // UPLOAD TO THE CASE'S DRIVE FOLDER
