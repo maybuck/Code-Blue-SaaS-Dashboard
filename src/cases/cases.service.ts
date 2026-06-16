@@ -265,6 +265,10 @@ async create(data: any, user: any) {
   let duplicateOfId: number | null = null;
 
   if (data.suspectName) {
+    // Duplicate detection is by SUSPECT NAME only (not case number).
+    // We never block creation — a matching suspect just flags the new case
+    // as a duplicate and links it to the earliest existing case so the team
+    // can see which cases overlap.
     const existingCase = await this.prisma.case.findFirst({
       where: {
         suspectName: {
@@ -279,11 +283,8 @@ async create(data: any, user: any) {
     });
 
     if (existingCase) {
-      return {
-        success: true,
-        message: 'Case already exists for this suspect',
-        data: existingCase,
-      };
+      isDuplicate = true;
+      duplicateOfId = existingCase.id;
     }
   }
 
@@ -392,7 +393,9 @@ async create(data: any, user: any) {
 
   return {
     success: true,
-    message: 'Case created successfully',
+    message: isDuplicate
+      ? `Case created — possible duplicate of Case #${duplicateOfId} (same suspect name).`
+      : 'Case created successfully',
     data: caseItem,
   };
 }
