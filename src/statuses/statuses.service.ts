@@ -13,8 +13,9 @@ const DEFAULT_STATUSES = [
   { key: 'AWAITING_REVIEW', label: 'Awaiting Review', color: 'amber', stage: 'Review', order: 3 },
   { key: 'APPROVED', label: 'Approved', color: 'green', stage: 'Review', order: 4 },
   { key: 'MEDIA_REQUESTED', label: 'Media Requested', color: 'purple', stage: 'Production', order: 5 },
-  { key: 'COMPLETED', label: 'Completed', color: 'emerald', stage: 'Production', order: 6 },
-  { key: 'VOIDED', label: 'Voided', color: 'red', stage: 'Closed', order: 7 },
+  { key: 'MEDIA_APPROVED', label: 'Media Approved', color: 'indigo', stage: 'Production', order: 6 },
+  { key: 'COMPLETED', label: 'Completed', color: 'emerald', stage: 'Production', order: 7 },
+  { key: 'VOIDED', label: 'Voided', color: 'red', stage: 'Closed', order: 8 },
 ];
 
 @Injectable()
@@ -22,9 +23,28 @@ export class StatusesService {
   constructor(private prisma: PrismaService) {}
 
   private async ensureSeed() {
-    const count = await this.prisma.status.count();
-    if (count === 0) {
-      await this.prisma.status.createMany({ data: DEFAULT_STATUSES });
+    // Self-healing: create any default status that's missing (matched by key),
+    // without overwriting labels/colors/order the user has customized. This lets
+    // newly introduced statuses (e.g. MEDIA_APPROVED) appear on existing DBs
+    // without a manual migration.
+    for (const s of DEFAULT_STATUSES) {
+      const existing = await this.prisma.status.findUnique({
+        where: { key: s.key },
+      });
+      if (!existing) {
+        await this.prisma.status.create({ data: s });
+        // Keep COMPLETED/VOIDED after a freshly inserted MEDIA_APPROVED.
+        if (s.key === 'MEDIA_APPROVED') {
+          await this.prisma.status.updateMany({
+            where: { key: 'COMPLETED' },
+            data: { order: 7 },
+          });
+          await this.prisma.status.updateMany({
+            where: { key: 'VOIDED' },
+            data: { order: 8 },
+          });
+        }
+      }
     }
   }
 
