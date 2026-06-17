@@ -48,6 +48,16 @@ export class PermissionsController {
   }
 
   // =========================
+  // BULK UPDATE ROLE ASSIGNMENTS (must be before ':id')
+  // body: { items: [{ permissionId, roleIds: number[] }] }
+  // =========================
+  @Patch('assignments')
+  @Permissions('permission.update')
+  updateAssignments(@Body('items') items: any) {
+    return this.permissions.updateAssignments(items);
+  }
+
+  // =========================
   // UPDATE PERMISSION
   // =========================
   @Patch(':id')
