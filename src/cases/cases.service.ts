@@ -400,7 +400,51 @@ async create(data: any, user: any) {
   };
 }
 
+// =========================
+// ACTIVITY FEED (notifications)
+// Managers see all activity; researchers see activity on cases they created
+// or are assigned to. Newest first.
+// =========================
+async getActivityFeed(user: any, limit = 30) {
+  const seeAll =
+    user.permissions?.includes('case.read.all') ||
+    user.permissions?.includes('case.update.all');
 
+  const where: any = seeAll
+    ? {}
+    : {
+        case: {
+          OR: [
+            { createdById: user.sub },
+            { assignees: { some: { id: user.sub } } },
+          ],
+        },
+      };
+
+  const activities = await this.prisma.caseActivity.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    include: {
+      user: { select: { firstName: true, lastName: true } },
+      case: { select: { id: true, caseNumber: true, suspectName: true } },
+    },
+  });
+
+  return {
+    success: true,
+    data: activities.map((a) => ({
+      id: a.id,
+      type: a.type,
+      message: a.message,
+      createdAt: a.createdAt,
+      author: a.user ? `${a.user.firstName} ${a.user.lastName}`.trim() : 'System',
+      caseId: a.caseId,
+      caseNumber: a.case?.caseNumber,
+      suspectName: a.case?.suspectName,
+    })),
+  };
+}
 
 async findAll(user: any, query: any = {}) {
   const where: any = {};

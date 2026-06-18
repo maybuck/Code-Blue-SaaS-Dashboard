@@ -52,7 +52,12 @@ export class CasesController {
   }
 
   
- 
+   // Recent activity feed for the signed-in user (notifications).
+  @Get('activities/feed')
+  @Permissions('case.read.own', 'case.read.all')
+  activityFeed(@Request() req: any) {
+    return this.cases.getActivityFeed(req.user);
+  }
 
 
   // =========================
