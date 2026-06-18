@@ -401,25 +401,37 @@ async create(data: any, user: any) {
 }
 
 // =========================
-// ACTIVITY FEED (notifications)
-// Managers see all activity; researchers see activity on cases they created
-// or are assigned to. Newest first.
+// ACTIVITY FEED (notifications) — directional
+// - Managers are notified of RESEARCHER actions (e.g. case created, media
+//   requested) across all cases.
+// - Researchers are notified of MANAGER actions (e.g. media approved, approved,
+//   voided) on cases they created or are assigned to.
+// - Nobody is notified of their own actions. Admins get nothing.
+// Newest first.
 // =========================
 async getActivityFeed(user: any, limit = 30) {
-  const seeAll =
-    user.permissions?.includes('case.read.all') ||
-    user.permissions?.includes('case.update.all');
+  let where: any;
 
-  const where: any = seeAll
-    ? {}
-    : {
-        case: {
-          OR: [
-            { createdById: user.sub },
-            { assignees: { some: { id: user.sub } } },
-          ],
-        },
-      };
+  if (user.role === 'MANAGER') {
+    where = {
+      userId: { not: user.sub },
+      user: { role: { name: 'RESEARCHER' } },
+    };
+  } else if (user.role === 'RESEARCHER') {
+    where = {
+      userId: { not: user.sub },
+      user: { role: { name: 'MANAGER' } },
+      case: {
+        OR: [
+          { createdById: user.sub },
+          { assignees: { some: { id: user.sub } } },
+        ],
+      },
+    };
+  } else {
+    // Admins don't work cases — no case notifications.
+    return { success: true, data: [] };
+  }
 
   const activities = await this.prisma.caseActivity.findMany({
     where,
