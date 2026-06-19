@@ -756,6 +756,12 @@ async update(id: number, data: any, user: any) {
 
     const allowedKeys = STATUS_TRANSITIONS[oldStatusKey] ?? [];
 
+    console.log({
+  oldStatusKey,
+  newStatusKey: newStatus.key,
+  allowedKeys,
+});
+
     if (oldStatusKey && !allowedKeys.includes(newStatus.key)) {
       throw new BadRequestException(
         `Invalid status transition: ${oldStatusKey} → ${newStatus.key}`,
