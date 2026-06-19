@@ -15,7 +15,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   REPORT_RECEIVED: ['AWAITING_REVIEW', 'VOIDED'],
   AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
   APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
-  MEDIA_REQUESTED: ['COMPLETED', 'VOIDED'],
+  MEDIA_REQUESTED: ['MEDIA_APPROVED','COMPLETED', 'VOIDED'],
   COMPLETED: [],
   // A mistakenly voided case can be restored to Approved by a manager.
   VOIDED: ['APPROVED'],
