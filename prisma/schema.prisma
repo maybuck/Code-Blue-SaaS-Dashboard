@@ -121,7 +121,6 @@ model Case {
 
   // Completion
   dateCompleted   DateTime?
-  notes           String?
   potential       String?
 
   // Google Drive
