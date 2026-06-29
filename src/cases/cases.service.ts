@@ -802,7 +802,7 @@ async findOne(id: number, user: any) {
           lastName: true,
         },
       },
-
+      media:true,
       assignedTo: {
         select: {
           id: true,
