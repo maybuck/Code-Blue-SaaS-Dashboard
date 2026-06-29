@@ -728,8 +728,20 @@ async findAll(user: any, query: any = {}) {
     where,
 
     include: {
-      createdBy: true,
-      assignedTo: true,
+       createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      assignedTo: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
 
       // Uploaded documents (so the review queue knows media is ready).
       activities: {
@@ -773,6 +785,7 @@ async findAll(user: any, query: any = {}) {
 
       // ✅ IMPORTANT: include status relation
       status: true,
+      media:true,
     },
 
     orderBy: {
