@@ -802,7 +802,6 @@ async findOne(id: number, user: any) {
           lastName: true,
         },
       },
-      media:true,
       assignedTo: {
         select: {
           id: true,
@@ -831,7 +830,7 @@ async findOne(id: number, user: any) {
       // STATUS (IMPORTANT FIX)
       // =========================
       status: true,
-
+media:true,
       // =========================
       // DUPLICATE RELATION
       // =========================
