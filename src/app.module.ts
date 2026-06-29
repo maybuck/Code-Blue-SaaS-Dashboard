@@ -9,6 +9,8 @@ import { DriveModule } from './drive/drive.module';
 import { MediaModule } from './media/media.module';
 import { AgenciesModule } from './agencies/agencies.module';
 import { StatusesModule } from './statuses/statuses.module';
+import { UploadModule } from './uploads/upload.module';
+import { CaseMediaModule } from './case-media/case-media.module';
 
 @Module({
   imports: [
@@ -19,7 +21,9 @@ import { StatusesModule } from './statuses/statuses.module';
     DriveModule,
     MediaModule,
     AgenciesModule,
+    UploadModule,
     StatusesModule,
+    CaseMediaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

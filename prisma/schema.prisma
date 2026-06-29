@@ -30,6 +30,8 @@ model User {
   // Activity Timeline
   activities    CaseActivity[]
 
+  uploadedMedia CaseMedia[]
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -138,6 +140,8 @@ model Case {
 
   assignees       User[]     @relation("CaseAssignees")
 
+  media CaseMedia[]
+
   // Timeline
   activities      CaseActivity[]
 
@@ -203,4 +207,25 @@ model Status {
  cases  Case[] 
 
   @@map("statuses")
+}
+
+model CaseMedia {
+  id            Int      @id @default(autoincrement())
+
+  caseId        Int
+  case          Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  uploadedById  Int
+  uploadedBy    User     @relation(fields: [uploadedById], references: [id])
+
+  fileName      String
+  fileUrl       String
+  mediaType     String   // image, video, audio, pdf, document
+
+  createdAt     DateTime @default(now())
+
+  @@index([caseId])
+  @@index([uploadedById])
+
+  @@map("case_media")
 }
