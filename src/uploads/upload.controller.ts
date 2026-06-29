@@ -14,11 +14,29 @@ export class UploadController {
   }
 
 
-  @Get('file/read')
-  async getSignedUrl(@Query('fileKey') fileKey: string) {
-    if (!fileKey) throw new BadRequestException('fileKey query param is required');
+  // @Get('file/read')
+  // async getSignedUrl(@Query('fileKey') fileKey: string) {
+  //   if (!fileKey) throw new BadRequestException('fileKey query param is required');
 
-    const downloadUrl = await this.uploadService.getSignedUrl(fileKey, 300);
-    return { success: true, downloadUrl };
-  }
+  //   const downloadUrl = await this.uploadService.getSignedUrl(fileKey, 300);
+  //   return { success: true, downloadUrl };
+  // }
+
+
+  @Get('file/read')
+async getFile(
+  @Query('fileKey') fileKey: string,
+  @Query('download') download?: string,
+) {
+  const url = await this.uploadService.getSignedUrl(
+    fileKey,
+    download === 'true',
+  );
+
+  return {
+    success: true,
+    url,
+  };
+}
+
 }

@@ -142,24 +142,49 @@ export class UploadService {
 }
 
 
- async getSignedUrl(fileKey: string, expiresIn = 300): Promise<string> {
+//  async getSignedUrl(fileKey: string, expiresIn = 300): Promise<string> {
+//   if (!fileKey) {
+//     throw new BadRequestException('Invalid file key');
+//   }
+
+//   const originalFileName = fileKey.split('-').slice(6).join('-');
+
+//   const command = new GetObjectCommand({
+//     Bucket: this.bucketName,
+//     Key: fileKey,
+//     ResponseContentDisposition: `attachment; filename="${originalFileName}"`,
+//   });
+
+//   const url = await awsGetSignedUrl(this.s3, command, {
+//     expiresIn,
+//   });
+
+//   return url;
+// }
+
+async getSignedUrl(
+  fileKey: string,
+  download = false,
+  expiresIn = 300,
+): Promise<string> {
   if (!fileKey) {
     throw new BadRequestException('Invalid file key');
   }
 
-  const originalFileName = fileKey.split('-').slice(6).join('-');
+  const fileName = fileKey.split('/').pop() ?? 'file';
 
   const command = new GetObjectCommand({
     Bucket: this.bucketName,
     Key: fileKey,
-    ResponseContentDisposition: `attachment; filename="${originalFileName}"`,
+    ResponseContentDisposition: download
+      ? `attachment; filename="${fileName}"`
+      : `inline; filename="${fileName}"`,
   });
 
-  const url = await awsGetSignedUrl(this.s3, command, {
+  return await awsGetSignedUrl(this.s3, command, {
     expiresIn,
   });
-
-  return url;
 }
+
 }
 
