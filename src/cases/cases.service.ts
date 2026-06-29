@@ -230,6 +230,8 @@ export class CasesService {
   // CREATE CASE
   // =========================
 
+
+
 // async create(data: any, user: any) {
 //   if (!user.permissions?.includes('case.create')) {
 //     throw new ForbiddenException('You cannot create cases');
@@ -248,7 +250,7 @@ export class CasesService {
 //     : 'Unknown User';
 
 //   // =========================
-//   // GET DEFAULT STATUS (REPORT_REQUESTED)
+//   // GET DEFAULT STATUS
 //   // =========================
 //   const defaultStatus = await this.prisma.status.findFirst({
 //     where: { key: 'REPORT_REQUESTED' },
@@ -259,16 +261,12 @@ export class CasesService {
 //   }
 
 //   // =========================
-//   // CHECK FOR DUPLICATE SUSPECT
+//   // DUPLICATE CHECK
 //   // =========================
 //   let isDuplicate = false;
 //   let duplicateOfId: number | null = null;
 
 //   if (data.suspectName) {
-//     // Duplicate detection is by SUSPECT NAME only (not case number).
-//     // We never block creation — a matching suspect just flags the new case
-//     // as a duplicate and links it to the earliest existing case so the team
-//     // can see which cases overlap.
 //     const existingCase = await this.prisma.case.findFirst({
 //       where: {
 //         suspectName: {
@@ -293,11 +291,7 @@ export class CasesService {
 //   // =========================
 //   let assignedToId: number | null = null;
 
-//   if (
-//     data.assignedToId !== undefined &&
-//     data.assignedToId !== null &&
-//     data.assignedToId !== ''
-//   ) {
+//   if (data.assignedToId) {
 //     const assignee = await this.prisma.user.findUnique({
 //       where: { id: Number(data.assignedToId) },
 //       select: { id: true },
@@ -318,85 +312,103 @@ export class CasesService {
 //   const agencyLink = await this.resolveAgency(data);
 
 //   // =========================
-//   // RESOLVE ASSIGNEES (many-to-many)
+//   // RESOLVE ASSIGNEES
 //   // =========================
 //   const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
 
 //   const assigneeConnect =
-//     resolvedAssignees && resolvedAssignees.length
+//     resolvedAssignees?.length
 //       ? { assignees: { connect: resolvedAssignees } }
 //       : {};
 
 //   // =========================
-//   // CREATE CASE
+//   // CREATE CASE + ACTIVITIES (TRANSACTION)
 //   // =========================
-//   const caseItem = await this.prisma.case.create({
-//     data: {
-//       ...assigneeConnect,
+//   const result = await this.prisma.$transaction(async (tx) => {
+//     // CREATE CASE
+//     const caseItem = await tx.case.create({
+//       data: {
+//         ...assigneeConnect,
 
-//       caseNumber: data.caseNumber ?? null,
-//       submittedVia: data.submittedVia,
+//         caseNumber: data.caseNumber ?? null,
+//         submittedVia: data.submittedVia,
 
-//       dateSubmitted: data.dateSubmitted
-//         ? new Date(data.dateSubmitted)
-//         : new Date(),
+//         dateSubmitted: data.dateSubmitted
+//           ? new Date(data.dateSubmitted)
+//           : new Date(),
 
-//       policeAgency: agencyLink.policeAgency ?? data.policeAgency,
-//       agencyId: agencyLink.agencyId ?? null,
-//       enteredBy: data.enteredBy,
+//         policeAgency: agencyLink.policeAgency ?? data.policeAgency,
+//         agencyId: agencyLink.agencyId ?? null,
+//         enteredBy: data.enteredBy,
 
-//       incidentDate: data.incidentDate
-//         ? new Date(data.incidentDate)
-//         : null,
+//         incidentDate: data.incidentDate
+//           ? new Date(data.incidentDate)
+//           : null,
 
-//       location: data.location,
-//       suspectName: data.suspectName,
-//       age: data.age,
+//         location: data.location,
+//         suspectName: data.suspectName,
+//         age: data.age,
 
-//       title: data.title,
-//       description: data.description,
-//       incidentSummary: data.incidentSummary,
+//         title: data.title,
+//         description: data.description,
+//         incidentSummary: data.incidentSummary,
 
-//       // ✅ FIXED: statusId instead of enum/string
-//       statusId: defaultStatus.id,
+//         statusId: defaultStatus.id,
 
-//       mediaType: data.mediaType,
+//         mediaType: data.mediaType,
 
-//       dateCompleted: data.dateCompleted
-//         ? new Date(data.dateCompleted)
-//         : null,
+//         dateCompleted: data.dateCompleted
+//           ? new Date(data.dateCompleted)
+//           : null,
 
-//       notes: data.notes,
-//       potential: data.potential,
 
-//       isDuplicate,
-//       duplicateOfId,
+//         potential: data.potential,
 
-//       createdById: user.sub,
-//       assignedToId,
-//     },
-//   });
+//         isDuplicate,
+//         duplicateOfId,
 
-//   // =========================
-//   // ACTIVITY LOG
-//   // =========================
-//   await this.prisma.caseActivity.create({
-//     data: {
-//       caseId: caseItem.id,
-//       userId: user.sub,
-//       type: 'CASE_CREATED',
-//       message: isDuplicate
-//         ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
-//         : `Case created by ${fullName}`,
-//     },
+//         createdById: user.sub,
+//         assignedToId,
+//       },
+//     });
+
+//     // =========================
+//     // CASE CREATED ACTIVITY
+//     // =========================
+//     await tx.caseActivity.create({
+//       data: {
+//         caseId: caseItem.id,
+//         userId: user.sub,
+//         type: 'CASE_CREATED',
+//         message: isDuplicate
+//           ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
+//           : `Case created by ${fullName}`,
+//       },
+//     });
+
+//     // =========================
+//     // NOTE ACTIVITY (ONLY IF EXISTS)
+//     // =========================
+//     if (data.notes?.trim()) {
+//       await tx.caseActivity.create({
+//         data: {
+//           caseId: caseItem.id,
+//           userId: user.sub,
+//           type: 'NOTE_ADDED',
+//           message: data.notes.trim(),
+//         },
+//       });
+//     }
+
+//     return caseItem;
 //   });
 
 //   return {
 //     success: true,
 //     message: isDuplicate
-//       ? `Case created — possible duplicate of Case #${duplicateOfId} (same suspect name).`
+//       ? `Case created — possible duplicate of Case #${duplicateOfId}`
 //       : 'Case created successfully',
-//     data: caseItem,
+//     data: result,
 //   };
 // }
 
@@ -418,7 +430,7 @@ async create(data: any, user: any) {
     : 'Unknown User';
 
   // =========================
-  // GET DEFAULT STATUS
+  // DEFAULT STATUS
   // =========================
   const defaultStatus = await this.prisma.status.findFirst({
     where: { key: 'REPORT_REQUESTED' },
@@ -443,9 +455,7 @@ async create(data: any, user: any) {
         },
         isDuplicate: false,
       },
-      orderBy: {
-        createdAt: 'asc',
-      },
+      orderBy: { createdAt: 'asc' },
     });
 
     if (existingCase) {
@@ -455,7 +465,7 @@ async create(data: any, user: any) {
   }
 
   // =========================
-  // VALIDATE ASSIGNEE
+  // ASSIGNEE VALIDATION
   // =========================
   let assignedToId: number | null = null;
 
@@ -475,12 +485,12 @@ async create(data: any, user: any) {
   }
 
   // =========================
-  // RESOLVE AGENCY
+  // AGENCY
   // =========================
   const agencyLink = await this.resolveAgency(data);
 
   // =========================
-  // RESOLVE ASSIGNEES
+  // ASSIGNEES
   // =========================
   const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
 
@@ -490,7 +500,7 @@ async create(data: any, user: any) {
       : {};
 
   // =========================
-  // CREATE CASE + ACTIVITIES (TRANSACTION)
+  // TRANSACTION
   // =========================
   const result = await this.prisma.$transaction(async (tx) => {
     // CREATE CASE
@@ -529,7 +539,6 @@ async create(data: any, user: any) {
           ? new Date(data.dateCompleted)
           : null,
 
-
         potential: data.potential,
 
         isDuplicate,
@@ -555,7 +564,7 @@ async create(data: any, user: any) {
     });
 
     // =========================
-    // NOTE ACTIVITY (ONLY IF EXISTS)
+    // NOTE ACTIVITY
     // =========================
     if (data.notes?.trim()) {
       await tx.caseActivity.create({
@@ -564,6 +573,21 @@ async create(data: any, user: any) {
           userId: user.sub,
           type: 'NOTE_ADDED',
           message: data.notes.trim(),
+        },
+      });
+    }
+
+    // =========================
+    // 📎 CASE MEDIA (PDF UPLOAD)
+    // =========================
+    if (data.pdfUrl) {
+      await tx.caseMedia.create({
+        data: {
+          caseId: caseItem.id,
+          uploadedById: user.sub,
+          fileName: data.pdfName ?? 'document.pdf',
+          fileUrl: data.pdfUrl,
+          mediaType: 'pdf',
         },
       });
     }
