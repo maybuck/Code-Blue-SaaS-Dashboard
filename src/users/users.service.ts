@@ -59,7 +59,7 @@ async findAll() {
   const users = await this.prisma.user.findMany({
     where: {
       roleId: {
-        not: 1,
+        notIn: [1,4],
       },
     },
     include: {
