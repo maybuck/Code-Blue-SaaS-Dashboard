@@ -67,9 +67,19 @@ export class AuthService {
   // =========================
   async login(email: string, password: string) {
     const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: { role: true },
-    });
+  where: { email },
+  include: {
+    role: {
+      include: {
+        permissions: {
+          include: {
+            permission: true,
+          },
+        },
+      },
+    },
+  },
+});
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -100,12 +110,19 @@ export class AuthService {
   // =========================
   // SANITIZE RESPONSE
   // =========================
-  private sanitize(user: any) {
-    const { passwordHash, ...rest } = user;
+ private sanitize(user: any) {
+  const { passwordHash, ...rest } = user;
 
-    return {
-      ...rest,
-      role: user.role?.name,
-    };
-  }
+  return {
+    ...rest,
+    role: {
+      id: user.role.id,
+      name: user.role.name,
+      permissions: user.role.permissions.map((rp: any) => ({
+        id: rp.permission.id,
+        name: rp.permission.name,
+      })),
+    },
+  };
+}
 }
