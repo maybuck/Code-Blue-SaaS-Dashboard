@@ -1182,6 +1182,12 @@ async findOne(id: number, user: any) {
           ? Number(dto.editorStatusId)
           : null,
       }),
+
+        ...(dto.scriptStatusId !== undefined && {
+        scriptStatusId: dto.scriptStatusId
+          ? Number(dto.scriptStatusId)
+          : null,
+      }),
     },
 
     include: {

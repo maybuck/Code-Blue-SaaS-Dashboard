@@ -147,6 +147,9 @@ model Case {
   writerId            Int?
   writer              User?     @relation("CaseWriter", fields: [writerId], references: [id])
 
+  scriptStatusId      Int?
+  scriptStatus        Status?   @relation("CaseScriptStatus", fields: [scriptStatusId], references: [id])
+
   editorId            Int?
   editor              User?     @relation("CaseEditor", fields: [editorId], references: [id])
 
@@ -227,6 +230,7 @@ model Status {
   updatedAt   DateTime @updatedAt
 
  cases  Case[] 
+  scriptCases Case[] @relation("CaseScriptStatus")
  editorCases Case[] @relation("CaseEditorStatus")
 
   @@map("statuses")
