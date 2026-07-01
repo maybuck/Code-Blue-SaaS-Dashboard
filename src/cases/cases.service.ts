@@ -12,14 +12,13 @@ import { DriveService } from 'src/drive/drive.service';
 // VOIDED is reachable from any open status; COMPLETED and VOIDED are terminal.
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   REPORT_REQUESTED: ['REPORT_RECEIVED', 'VOIDED'],
-  REPORT_RECEIVED:  ['AWAITING_REVIEW', 'VOIDED'],
-  AWAITING_REVIEW:  ['APPROVED', 'VOIDED'],
-  APPROVED:         ['MEDIA_REQUESTED', 'VOIDED'],
-  MEDIA_REQUESTED:  ['MEDIA_APPROVED', 'VOIDED'],
-  MEDIA_APPROVED:   ['COMPLETED', 'VOIDED'],   // ← add this line
-  COMPLETED:        [],
+  REPORT_RECEIVED: ['AWAITING_REVIEW', 'VOIDED'],
+  AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
+  APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
+  MEDIA_REQUESTED: ['MEDIA_APPROVED','COMPLETED', 'VOIDED'],
+  COMPLETED: [],
   // A mistakenly voided case can be restored to Approved by a manager.
-  VOIDED:           ['APPROVED'],
+  VOIDED: ['APPROVED'],
 };
 
 @Injectable()
@@ -680,7 +679,7 @@ async findAll(user: any, query: any = {}) {
   }
 
   // =========================
-  // STATUS FILTER (FIXED)
+  // STATUS FILTER
   // =========================
   if (query.status) {
     const status = await this.prisma.status.findFirst({
@@ -712,11 +711,36 @@ async findAll(user: any, query: any = {}) {
 
     and.push({
       OR: [
-        { caseNumber: { contains: q, mode: 'insensitive' } },
-        { suspectName: { contains: q, mode: 'insensitive' } },
-        { title: { contains: q, mode: 'insensitive' } },
-        { policeAgency: { contains: q, mode: 'insensitive' } },
-        { location: { contains: q, mode: 'insensitive' } },
+        {
+          caseNumber: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          suspectName: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          title: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          policeAgency: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          location: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
       ],
     });
   }
@@ -729,13 +753,14 @@ async findAll(user: any, query: any = {}) {
     where,
 
     include: {
-       createdBy: {
+      createdBy: {
         select: {
           id: true,
           firstName: true,
           lastName: true,
         },
       },
+
       assignedTo: {
         select: {
           id: true,
@@ -744,10 +769,32 @@ async findAll(user: any, query: any = {}) {
         },
       },
 
-      // Uploaded documents (so the review queue knows media is ready).
+      writer: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+      editor: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+      editorStatus: true,
+
+      // Uploaded media
       activities: {
-        where: { type: 'MEDIA' },
-        select: { id: true },
+        where: {
+          type: 'MEDIA',
+        },
+        select: {
+          id: true,
+        },
       },
 
       assignees: {
@@ -766,7 +813,6 @@ async findAll(user: any, query: any = {}) {
         },
       },
 
-      // Duplicate relations
       duplicateOf: {
         select: {
           id: true,
@@ -784,9 +830,9 @@ async findAll(user: any, query: any = {}) {
         },
       },
 
-      // ✅ IMPORTANT: include status relation
       status: true,
-      media:true,
+
+      media: true,
     },
 
     orderBy: {
@@ -800,10 +846,13 @@ async findAll(user: any, query: any = {}) {
     data: cases,
   };
 }
-
   // =========================
   // GET ONE CASE (WITH TIMELINE)
   // =========================
+
+  // =========================
+// GET ONE CASE (WITH TIMELINE)
+// =========================
 async findOne(id: number, user: any) {
   const caseItem = await this.prisma.case.findUnique({
     where: { id },
@@ -816,6 +865,7 @@ async findOne(id: number, user: any) {
           lastName: true,
         },
       },
+
       assignedTo: {
         select: {
           id: true,
@@ -823,6 +873,24 @@ async findOne(id: number, user: any) {
           lastName: true,
         },
       },
+
+      writer: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+      editor: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+      editorStatus: true,
 
       assignees: {
         select: {
@@ -841,10 +909,15 @@ async findOne(id: number, user: any) {
       },
 
       // =========================
-      // STATUS (IMPORTANT FIX)
+      // STATUS
       // =========================
       status: true,
-media:true,
+
+      // =========================
+      // MEDIA
+      // =========================
+      media: true,
+
       // =========================
       // DUPLICATE RELATION
       // =========================
@@ -853,10 +926,7 @@ media:true,
           id: true,
           caseNumber: true,
           suspectName: true,
-
-          // FIX: include status relation instead of old field
           status: true,
-
           createdAt: true,
         },
       },
@@ -866,10 +936,7 @@ media:true,
           id: true,
           caseNumber: true,
           suspectName: true,
-
-          // FIX: include status relation
           status: true,
-
           createdAt: true,
 
           createdBy: {
@@ -880,6 +947,7 @@ media:true,
             },
           },
         },
+
         orderBy: {
           createdAt: 'desc',
         },
@@ -901,6 +969,7 @@ media:true,
             },
           },
         },
+
         orderBy: {
           createdAt: 'desc',
         },
@@ -918,7 +987,6 @@ media:true,
     data: {
       ...caseItem,
 
-
       // activeDriveUrl: this.activeDriveUrl(caseItem),
     },
   };
@@ -927,7 +995,8 @@ media:true,
   // =========================
   // UPDATE CASE (WITH FULL ACTIVITY LOGGING)
   // =========================
-async update(id: number, data: any, user: any) {
+
+  async update(id: number, dto: any, user: any) {
   const caseItem = await this.prisma.case.findUnique({
     where: { id },
     include: {
@@ -944,9 +1013,48 @@ async update(id: number, data: any, user: any) {
     throw new ForbiddenException('You cannot update this case');
   }
 
+  // =========================
+  // WRITER VALIDATION (roleId = 5)
+  // =========================
+  if (dto.writerId) {
+    const writer = await this.prisma.user.findFirst({
+      where: {
+        id: Number(dto.writerId),
+        roleId: 5,
+      },
+    });
+
+    if (!writer) {
+      throw new BadRequestException(
+        'Selected user is not a valid Writer.'
+      );
+    }
+  }
+
+  // =========================
+  // EDITOR VALIDATION (roleId = 6)
+  // =========================
+  if (dto.editorId) {
+    const editor = await this.prisma.user.findFirst({
+      where: {
+        id: Number(dto.editorId),
+        roleId: 6,
+      },
+    });
+
+    if (!editor) {
+      throw new BadRequestException(
+        'Selected user is not a valid Editor.'
+      );
+    }
+  }
+
   const dbUser = await this.prisma.user.findUnique({
     where: { id: user.sub },
-    select: { firstName: true, lastName: true },
+    select: {
+      firstName: true,
+      lastName: true,
+    },
   });
 
   const fullName = dbUser
@@ -958,13 +1066,13 @@ async update(id: number, data: any, user: any) {
   const oldSuspectName = caseItem.suspectName;
 
   // =========================
-  // STATUS UPDATE (statusId)
+  // STATUS UPDATE
   // =========================
   let statusData: any = {};
 
-  if (data.statusId && data.statusId !== caseItem.statusId) {
+  if (dto.statusId && dto.statusId !== caseItem.statusId) {
     const newStatus = await this.prisma.status.findUnique({
-      where: { id: Number(data.statusId) },
+      where: { id: Number(dto.statusId) },
     });
 
     if (!newStatus) {
@@ -972,12 +1080,6 @@ async update(id: number, data: any, user: any) {
     }
 
     const allowedKeys = STATUS_TRANSITIONS[oldStatusKey] ?? [];
-
-    console.log({
-  oldStatusKey,
-  newStatusKey: newStatus.key,
-  allowedKeys,
-});
 
     if (oldStatusKey && !allowedKeys.includes(newStatus.key)) {
       throw new BadRequestException(
@@ -988,7 +1090,7 @@ async update(id: number, data: any, user: any) {
     statusData.statusId = newStatus.id;
   }
 
-  const { note: incomingNote, assigneeIds, ...caseData } = data;
+  const { note: incomingNote, assigneeIds, ...caseData } = dto;
 
   // =========================
   // ASSIGNEES
@@ -997,15 +1099,20 @@ async update(id: number, data: any, user: any) {
   const resolvedAssignees = await this.resolveAssignees(assigneeIds);
 
   if (resolvedAssignees !== null) {
-    assigneeData = { assignees: { set: resolvedAssignees } };
+    assigneeData = {
+      assignees: {
+        set: resolvedAssignees,
+      },
+    };
   }
 
   // =========================
   // AGENCY
   // =========================
   let agencyData: any = {};
-  if (data.policeAgency !== undefined || data.agencyId !== undefined) {
-    agencyData = await this.resolveAgency(data);
+
+  if (dto.policeAgency !== undefined || dto.agencyId !== undefined) {
+    agencyData = await this.resolveAgency(dto);
   }
 
   // =========================
@@ -1014,13 +1121,13 @@ async update(id: number, data: any, user: any) {
   let duplicateData: any = {};
 
   if (
-    data.suspectName &&
-    data.suspectName.trim() !== oldSuspectName
+    dto.suspectName &&
+    dto.suspectName.trim() !== oldSuspectName
   ) {
     const existingCase = await this.prisma.case.findFirst({
       where: {
         suspectName: {
-          equals: data.suspectName.trim(),
+          equals: dto.suspectName.trim(),
           mode: 'insensitive',
         },
         id: { not: id },
@@ -1029,15 +1136,22 @@ async update(id: number, data: any, user: any) {
     });
 
     duplicateData = existingCase
-      ? { isDuplicate: true, duplicateOfId: existingCase.id }
-      : { isDuplicate: false, duplicateOfId: null };
+      ? {
+          isDuplicate: true,
+          duplicateOfId: existingCase.id,
+        }
+      : {
+          isDuplicate: false,
+          duplicateOfId: null,
+        };
   }
 
   // =========================
-  // UPDATE CASE (IMPORTANT FIX: assignedToId added)
+  // UPDATE CASE
   // =========================
   const updated = await this.prisma.case.update({
     where: { id },
+
     data: {
       ...caseData,
       ...statusData,
@@ -1045,54 +1159,69 @@ async update(id: number, data: any, user: any) {
       ...agencyData,
       ...assigneeData,
 
-      // 🔥 FIX: make sure DB updates assignment too
-      ...(data.assignedToId !== undefined && {
-        assignedToId: data.assignedToId
-          ? Number(data.assignedToId)
+      ...(dto.assignedToId !== undefined && {
+        assignedToId: dto.assignedToId
+          ? Number(dto.assignedToId)
+          : null,
+      }),
+
+      ...(dto.writerId !== undefined && {
+        writerId: dto.writerId
+          ? Number(dto.writerId)
+          : null,
+      }),
+
+      ...(dto.editorId !== undefined && {
+        editorId: dto.editorId
+          ? Number(dto.editorId)
+          : null,
+      }),
+
+      ...(dto.editorStatusId !== undefined && {
+        editorStatusId: dto.editorStatusId
+          ? Number(dto.editorStatusId)
           : null,
       }),
     },
+
     include: {
       status: true,
+      writer: { select: { id: true, firstName: true, lastName: true } },
+      editor: { select: { id: true, firstName: true, lastName: true } },
+      editorStatus: true,
+      createdBy: { select: { id: true, firstName: true, lastName: true } },
+      assignedTo: { select: { id: true, firstName: true, lastName: true } },
+      assignees: { select: { id: true, firstName: true, lastName: true } },
+      agency: true,
+      media: true,
     },
   });
 
   // =========================
-  // STATUS LOG
+  // LOGS
   // =========================
   if (statusData.statusId) {
-    const newStatusKey = updated.status?.key ?? null;
-
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
         type: 'STATUS_CHANGED',
-        message: `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`,
+        message: `Status updated by ${fullName}`,
       },
     });
   }
 
-  // =========================
-  // ASSIGNMENT LOG
-  // =========================
-  if (
-    data.assignedToId &&
-    data.assignedToId !== oldAssignedTo
-  ) {
+  if (dto.assignedToId && dto.assignedToId !== oldAssignedTo) {
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
         type: 'CASE_ASSIGNED',
-        message: `Case assigned to user ID ${data.assignedToId} by ${fullName}`,
+        message: `Case assigned by ${fullName}`,
       },
     });
   }
 
-  // =========================
-  // NOTE LOG
-  // =========================
   if (incomingNote?.trim()) {
     await this.prisma.caseActivity.create({
       data: {
@@ -1104,19 +1233,16 @@ async update(id: number, data: any, user: any) {
     });
   }
 
-  // =========================
-  // SUSPECT LOG
-  // =========================
   if (
-    data.suspectName &&
-    data.suspectName.trim() !== oldSuspectName
+    dto.suspectName &&
+    dto.suspectName.trim() !== oldSuspectName
   ) {
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
         type: 'CASE_UPDATED',
-        message: `Suspect changed from "${oldSuspectName}" to "${data.suspectName}" by ${fullName}`,
+        message: `Suspect changed by ${fullName}`,
       },
     });
   }
@@ -1485,3 +1611,4 @@ const oldestOpenRequests = cases
     };
   }
 }
+s

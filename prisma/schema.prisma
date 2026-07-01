@@ -27,8 +27,8 @@ model User {
   // Cases this user collaborates on (many-to-many assignees).
   caseAssignments Case[] @relation("CaseAssignees")
 
-  writerTrackings EditorTracking[] @relation("CaseWriter")
-  editorTrackings EditorTracking[] @relation("CaseEditor")
+writtenCases Case[] @relation("CaseWriter")
+editedCases  Case[] @relation("CaseEditor")
 
   // Activity Timeline
   activities    CaseActivity[]
@@ -84,7 +84,7 @@ model Case {
   id              Int        @id @default(autoincrement())
 
   // Case Identity
-  caseNumber      String?    
+  caseNumber      String?
 
   // Duplicate Tracking
   isDuplicate     Boolean    @default(false)
@@ -115,7 +115,7 @@ model Case {
   title           String?
   description     String?
 
-  // ✅ STATUS (NOW FROM TABLE)
+  // Status
   statusId        Int
   status          Status     @relation(fields: [statusId], references: [id])
 
@@ -133,7 +133,7 @@ model Case {
   driveReportsUrl        String?
   driveCompletedUrl      String?
 
-  // Relations
+  // Assignment
   createdById     Int
   createdBy       User       @relation("CaseCreator", fields: [createdById], references: [id])
 
@@ -142,7 +142,25 @@ model Case {
 
   assignees       User[]     @relation("CaseAssignees")
 
-  media CaseMedia[]
+  dateAssigned        DateTime?
+
+  writerId            Int?
+  writer              User?     @relation("CaseWriter", fields: [writerId], references: [id])
+
+  editorId            Int?
+  editor              User?     @relation("CaseEditor", fields: [editorId], references: [id])
+
+  editorStatusId      Int?
+  editorStatus        Status?   @relation("CaseEditorStatus", fields: [editorStatusId], references: [id])
+
+  editorPaid          Boolean   @default(false)
+  editorPaidDate      DateTime?
+
+  researcherPaid      Boolean   @default(false)
+  researcherPaidDate  DateTime?
+
+  // Media
+  media           CaseMedia[]
 
   // Timeline
   activities      CaseActivity[]
@@ -151,11 +169,12 @@ model Case {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-   editorTracking EditorTracking?
-
   @@index([statusId])
   @@index([createdById])
   @@index([assignedToId])
+  @@index([writerId])
+  @@index([editorId])
+  @@index([editorStatusId])
   @@index([caseNumber])
   @@index([suspectName])
   @@index([duplicateOfId])
@@ -163,7 +182,6 @@ model Case {
 
   @@map("cases")
 }
-
 model CaseActivity {
   id          Int      @id @default(autoincrement())
 
@@ -209,7 +227,7 @@ model Status {
   updatedAt   DateTime @updatedAt
 
  cases  Case[] 
-  editorTrackings EditorTracking[]
+ editorCases Case[] @relation("CaseEditorStatus")
 
   @@map("statuses")
 }
@@ -236,35 +254,3 @@ model CaseMedia {
 }
 
 
-model EditorTracking {
-  id Int @id @default(autoincrement())
-
-  caseId Int @unique
-  case   Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  dateAssigned DateTime?
-
-  writerId Int?
-  writer   User? @relation("CaseWriter", fields: [writerId], references: [id])
-
-  editorId Int?
-  editor   User? @relation("CaseEditor", fields: [editorId], references: [id])
-
-  editorStatusId Int?
-  editorStatus   Status? @relation(fields: [editorStatusId], references: [id])
-
-  editorPaid Boolean @default(false)
-  editorPaidDate DateTime?
-
-  researcherPaid Boolean @default(false)
-  researcherPaidDate DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([writerId])
-  @@index([editorId])
-  @@index([editorStatusId])
-
-  @@map("editor_tracking")
-}

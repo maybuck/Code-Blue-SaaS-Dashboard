@@ -11,7 +11,6 @@ import { AgenciesModule } from './agencies/agencies.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { UploadModule } from './uploads/upload.module';
 import { CaseMediaModule } from './case-media/case-media.module';
-import { EditorTrackingModule } from './editor-tracking/editor-tracking.module';
 
 @Module({
   imports: [
@@ -24,8 +23,7 @@ import { EditorTrackingModule } from './editor-tracking/editor-tracking.module';
     AgenciesModule,
     UploadModule,
     StatusesModule,
-    CaseMediaModule,
-    EditorTrackingModule,
+    CaseMediaModule
   ],
   controllers: [AppController],
   providers: [AppService],
