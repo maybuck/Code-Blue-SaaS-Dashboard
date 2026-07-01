@@ -27,6 +27,9 @@ model User {
   // Cases this user collaborates on (many-to-many assignees).
   caseAssignments Case[] @relation("CaseAssignees")
 
+  writerTrackings EditorTracking[] @relation("CaseWriter")
+  editorTrackings EditorTracking[] @relation("CaseEditor")
+
   // Activity Timeline
   activities    CaseActivity[]
 
@@ -148,6 +151,8 @@ model Case {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
+   editorTracking EditorTracking?
+
   @@index([statusId])
   @@index([createdById])
   @@index([assignedToId])
@@ -204,6 +209,7 @@ model Status {
   updatedAt   DateTime @updatedAt
 
  cases  Case[] 
+  editorTrackings EditorTracking[]
 
   @@map("statuses")
 }
@@ -227,4 +233,38 @@ model CaseMedia {
   @@index([uploadedById])
 
   @@map("case_media")
+}
+
+
+model EditorTracking {
+  id Int @id @default(autoincrement())
+
+  caseId Int @unique
+  case   Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  dateAssigned DateTime?
+
+  writerId Int?
+  writer   User? @relation("CaseWriter", fields: [writerId], references: [id])
+
+  editorId Int?
+  editor   User? @relation("CaseEditor", fields: [editorId], references: [id])
+
+  editorStatusId Int?
+  editorStatus   Status? @relation(fields: [editorStatusId], references: [id])
+
+  editorPaid Boolean @default(false)
+  editorPaidDate DateTime?
+
+  researcherPaid Boolean @default(false)
+  researcherPaidDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([writerId])
+  @@index([editorId])
+  @@index([editorStatusId])
+
+  @@map("editor_tracking")
 }
