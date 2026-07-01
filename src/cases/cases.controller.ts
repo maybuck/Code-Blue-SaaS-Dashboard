@@ -40,7 +40,7 @@ export class CasesController {
   // GET ALL CASES
   // =========================
   @Get("analytics")
-    @Roles('MANAGER')
+    @Roles('MANAGER','OWNER')
   getAnalytics() {
     return this.cases.getDashboardAnalytics();
   }
