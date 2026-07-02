@@ -1210,12 +1210,13 @@ async findOne(id: number, user: any) {
   // LOGS
   // =========================
   if (statusData.statusId) {
+    const newStatusKey = updated.status?.key ?? null;
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
         type: 'STATUS_CHANGED',
-        message: `Status updated by ${fullName}`,
+         message: `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`,
       },
     });
   }
@@ -1226,7 +1227,7 @@ async findOne(id: number, user: any) {
         caseId: id,
         userId: user.sub,
         type: 'CASE_ASSIGNED',
-        message: `Case assigned by ${fullName}`,
+        message: `Case assigned to user ID ${dto.assignedToId} by ${fullName}`,
       },
     });
   }
@@ -1251,7 +1252,8 @@ async findOne(id: number, user: any) {
         caseId: id,
         userId: user.sub,
         type: 'CASE_UPDATED',
-        message: `Suspect changed by ${fullName}`,
+        message: `Suspect changed from "${oldSuspectName}" to "${dto.suspectName}" by ${fullName}`,
+
       },
     });
   }
