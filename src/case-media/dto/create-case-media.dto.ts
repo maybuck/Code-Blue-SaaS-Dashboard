@@ -19,4 +19,4 @@ export class CreateCaseMediaDto {
 
   @IsString()
   mediaType: string;
-}s
+}
