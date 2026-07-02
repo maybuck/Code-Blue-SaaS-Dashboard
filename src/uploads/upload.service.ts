@@ -171,17 +171,23 @@ async getSignedUrl(
     throw new BadRequestException('Invalid file key');
   }
 
-  const fileName = fileKey.split('/').pop() ?? 'file';
+  const storedFileName = fileKey.split('/').pop() ?? 'file';
+
+  // Remove "<timestamp>-<uuid>-" prefix
+  const originalFileName = storedFileName.replace(
+    /^\d+-[0-9a-fA-F-]{36}-/,
+    '',
+  );
 
   const command = new GetObjectCommand({
     Bucket: this.bucketName,
     Key: fileKey,
     ResponseContentDisposition: download
-      ? `attachment; filename="${fileName}"`
-      : `inline; filename="${fileName}"`,
+      ? `attachment; filename="${originalFileName}"`
+      : `inline; filename="${originalFileName}"`,
   });
 
-  return await awsGetSignedUrl(this.s3, command, {
+  return awsGetSignedUrl(this.s3, command, {
     expiresIn,
   });
 }
