@@ -619,7 +619,7 @@ async create(data: any, user: any) {
 async getActivityFeed(user: any, limit = 30) {
   let where: any;
 
-  if (user.role === 'MANAGER') {
+  if (user.role === 'MANAGER' || user.role === 'Owner' || user.role === 'OWNER') {
     where = {
       userId: { not: user.sub },
       user: { role: { name: 'RESEARCHER' } },
