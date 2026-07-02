@@ -12,13 +12,16 @@ import { DriveService } from 'src/drive/drive.service';
 // VOIDED is reachable from any open status; COMPLETED and VOIDED are terminal.
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   REPORT_REQUESTED: ['REPORT_RECEIVED', 'VOIDED'],
-  REPORT_RECEIVED: ['AWAITING_REVIEW', 'VOIDED'],
-  AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
-  APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
-  MEDIA_REQUESTED: ['MEDIA_APPROVED','COMPLETED', 'VOIDED'],
-  COMPLETED: [],
+  REPORT_RECEIVED:  ['AWAITING_REVIEW', 'VOIDED'],
+  AWAITING_REVIEW:  ['APPROVED', 'VOIDED'],
+  APPROVED:         ['MEDIA_REQUESTED', 'VOIDED'],
+  MEDIA_REQUESTED:  ['MEDIA_APPROVED', 'VOIDED'],   // go through approval, not straight to COMPLETED
+  MEDIA_APPROVED:   ['COMPLETED', 'VOIDED'],        // ← add this line (was missing)
+  COMPLETED:        ['IN_PROGRESS'],
+  IN_PROGRESS:      ['PUBLISHED'],
+  PUBLISHED:        [],
   // A mistakenly voided case can be restored to Approved by a manager.
-  VOIDED: ['APPROVED'],
+  VOIDED:           ['APPROVED'],
 };
 
 @Injectable()
