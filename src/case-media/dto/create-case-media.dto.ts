@@ -1,4 +1,4 @@
-import { IsInt, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 export class CreateCaseMediaDto {
   @IsInt()
@@ -6,6 +6,10 @@ export class CreateCaseMediaDto {
 
   @IsInt()
   uploadedById: number;
+
+  @IsOptional()
+  @IsString()
+  label?: string;
 
   @IsString()
   fileName: string;
@@ -15,4 +19,4 @@ export class CreateCaseMediaDto {
 
   @IsString()
   mediaType: string;
-}
+}s

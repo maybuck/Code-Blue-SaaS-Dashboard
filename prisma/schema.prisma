@@ -247,6 +247,7 @@ model CaseMedia {
 
   fileName      String
   fileUrl       String
+  label         String?
   mediaType     String   // image, video, audio, pdf, document
 
   createdAt     DateTime @default(now())
