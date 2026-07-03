@@ -627,7 +627,12 @@ async getActivityFeed(user: any, limit = 30) {
   } else if (user.role === 'RESEARCHER') {
     where = {
       userId: { not: user.sub },
-      user: { role: { name: 'MANAGER' } },
+      user: {
+        role: {
+          name: {
+            in: ['MANAGER', 'OWNER', 'Owner'],
+          },
+        },},
       case: {
         OR: [
           { createdById: user.sub },
