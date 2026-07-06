@@ -139,43 +139,4 @@ export class CasesController {
   ) {
     return this.cases.markMediaUploaded(id, req.user, file);
   }
-
-  // =========================
-  // LINK GOOGLE DRIVE FOLDERS
-  // Provisions <Suspect> - <caseNumber>/Reports + /CompletedRequests and
-  // persists the links on the case for the Case Detail Drive panel.
-  // =========================
-  // @Post(':id/drive/link')
-  // @Permissions('case.update.own', 'case.update.all')
-  // linkDrive(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @Request() req: any,
-  // ) {
-  //   return this.cases.linkDriveFolders(id, req.user);
-  // }
-
-  // =========================
-  // UPLOAD TO THE CASE'S DRIVE FOLDER
-  // Auto-routes to Reports (open) or CompletedRequests (COMPLETED),
-  // provisioning folders if needed, and records the media row.
-  // multipart/form-data, field name "file".
-  // =========================
-  // @Post(':id/drive/upload')
-  // @Permissions('case.update.own', 'case.update.all')
-  // @UseInterceptors(
-  //   FileInterceptor('file', {
-  //     storage: memoryStorage(),
-  //     limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
-  //   }),
-  // )
-  // uploadDrive(
-  //   @Param('id', ParseIntPipe) id: number,
-  //   @UploadedFile() file: Express.Multer.File,
-  //   @Request() req: any,
-  // ) {
-  //   return this.cases.uploadCaseMedia(id, req.user, file);
-  // }
-
-
-
 }

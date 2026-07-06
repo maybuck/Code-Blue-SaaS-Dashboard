@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from 'src/prisma/prisma.service';
-import { DriveService } from 'src/drive/drive.service';
 
 // Allowed status transitions. Keep in sync with the frontend (lib/workflow.js).
 // VOIDED is reachable from any open status; COMPLETED and VOIDED are terminal.
@@ -27,8 +26,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 @Injectable()
 export class CasesService {
   constructor(
-    private prisma: PrismaService,
-    private drive: DriveService,
+    private prisma: PrismaService
   ) {}
 
   // =========================
@@ -95,143 +93,6 @@ export class CasesService {
 
     return {};
   }
-
-  // =========================
-  // DRIVE FOLDER HELPERS
-  // =========================
-
-  /** Active folder link for the Case Detail Drive panel, based on status. */
-  private activeDriveUrl(c: {
-    status: string;
-    driveReportsUrl: string | null;
-    driveCompletedUrl: string | null;
-  }): string | null {
-    return c.status === 'COMPLETED'
-      ? c.driveCompletedUrl
-      : c.driveReportsUrl;
-  }
-
-  /**
-   * Provision (find-or-create) the case's Google Drive folder tree and persist
-   * the ids + links on the case. Returns the links for the Drive panel.
-   *
-   * Structure: <appRoot>/<Suspect> - <caseNumber>/Reports + /CompletedRequests
-   */
-  // async linkDriveFolders(id: number, user: any) {
-  //   const caseItem = await this.prisma.case.findUnique({
-  //     where: { id },
-  //     include: { assignees: { select: { id: true } } },
-  //   });
-  //   if (!caseItem) {
-  //     throw new NotFoundException('Case not found');
-  //   }
-
-  //   if (!this.canEditCase(caseItem, user)) {
-  //     throw new ForbiddenException('You cannot link Drive folders for this case');
-  //   }
-
-  //   const suspect = caseItem.suspectName?.trim() || 'Unknown';
-  //   const label = `${suspect} - ${caseItem.caseNumber}`;
-
-  //   const folders = await this.drive.getOrCreateCaseFolders(user.sub, label);
-
-  //   const updated = await this.prisma.case.update({
-  //     where: { id },
-  //     data: {
-  //       driveFolderId: folders.folderId,
-  //       driveReportsFolderId: folders.reportsFolderId,
-  //       driveCompletedFolderId: folders.completedFolderId,
-  //       driveReportsUrl: folders.reportsUrl,
-  //       driveCompletedUrl: folders.completedUrl,
-  //     },
-  //   });
-
-  //   return {
-  //     success: true,
-  //     message: 'Google Drive folders linked',
-  //     data: {
-  //       folderUrl: folders.folderUrl,
-  //       reportsUrl: updated.driveReportsUrl,
-  //       completedUrl: updated.driveCompletedUrl,
-  //       // activeUrl: this.activeDriveUrl(updated),
-  //     },
-  //   };
-  // }
-
-  /**
-   * Upload a file into the case's correct Drive folder and record it.
-   * Routes to CompletedRequests when the case is COMPLETED, else Reports.
-   * Provisions the folders first if they don't exist yet.
-   */
-  // async uploadCaseMedia(id: number, user: any, file: Express.Multer.File) {
-  //   const caseItem = await this.prisma.case.findUnique({
-  //     where: { id },
-  //     include: { assignees: { select: { id: true } } },
-  //   });
-  //   if (!caseItem) {
-  //     throw new NotFoundException('Case not found');
-  //   }
-
-  //   if (!this.canEditCase(caseItem, user)) {
-  //     throw new ForbiddenException('You cannot upload media for this case');
-  //   }
-
-  //   // Ensure the case's Drive folders exist (provision + persist on first use).
-  //   let reportsId = caseItem.driveReportsFolderId;
-  //   let completedId = caseItem.driveCompletedFolderId;
-  //   if (!reportsId || !completedId) {
-  //     const suspect = caseItem.suspectName?.trim() || 'Unknown';
-  //     const label = `${suspect} - ${caseItem.caseNumber}`;
-  //     const folders = await this.drive.getOrCreateCaseFolders(user.sub, label);
-
-  //     await this.prisma.case.update({
-  //       where: { id },
-  //       data: {
-  //         driveFolderId: folders.folderId,
-  //         driveReportsFolderId: folders.reportsFolderId,
-  //         driveCompletedFolderId: folders.completedFolderId,
-  //         driveReportsUrl: folders.reportsUrl,
-  //         driveCompletedUrl: folders.completedUrl,
-  //       },
-  //     });
-
-  //     reportsId = folders.reportsFolderId;
-  //     completedId = folders.completedFolderId;
-  //   }
-
-  //   const isCompleted = caseItem.status === 'COMPLETED';
-  //   const targetFolderId = isCompleted ? completedId : reportsId;
-
-  //   const uploaded = await this.drive.uploadFile(
-  //     user.sub,
-  //     file,
-  //     targetFolderId!,
-  //   );
-
-  //   // Record the media on the case timeline.
-  //   const media = await this.prisma.caseActivity.create({
-  //     data: {
-  //       caseId: id,
-  //       userId: user.sub,
-  //       type: 'MEDIA',
-  //       message: uploaded.webViewLink ?? '',
-  //     },
-  //   });
-
-  //   return {
-  //     success: true,
-  //     message: 'File uploaded to case Drive folder',
-  //     data: {
-  //       folder: isCompleted ? 'CompletedRequests' : 'Reports',
-  //       file: uploaded,
-  //       media,
-  //     },
-  //   };
-  // }
-
-  // =========================
-  // CREATE CASE
-  // =========================
 
 
 
@@ -995,7 +856,6 @@ async findOne(id: number, user: any) {
     data: {
       ...caseItem,
 
-      // activeDriveUrl: this.activeDriveUrl(caseItem),
     },
   };
 }
