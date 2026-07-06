@@ -427,6 +427,15 @@ async create(data: any, user: any) {
       },
     });
 
+    await tx.caseActivity.create({
+  data: {
+    caseId: caseItem.id,
+    userId: user.sub,
+    type: 'STATUS_CHANGED',
+    message: `Status set to ${defaultStatus.key} by ${fullName}`,
+  },
+});
+
         if (resolvedAssignees?.length) {
   const collaborators = await tx.user.findMany({
     where: {
