@@ -1324,7 +1324,7 @@ if (removedAssigneeIds.length) {
       data: activity,
     };
   }
-async getDashboardAnalytics() {
+async getDashboardAnalytics(from?: string, to?: string) {
   // =========================
   // LOAD STATUS IDS
   // =========================
@@ -1342,12 +1342,25 @@ async getDashboardAnalytics() {
   // =========================
   // LOAD CASES
   // =========================
+  const createdAt: any = {};
+  if (from) createdAt.gte = new Date(`${from}T00:00:00.000`);
+  if (to)   createdAt.lte = new Date(`${to}T23:59:59.999`);
+  const dateWhere =
+    from || to ? { createdAt } : {};
+
   const cases = await this.prisma.case.findMany({
+    where: dateWhere,               // <-- apply the range
     include: {
       createdBy: true,
-       status: true,
+      status: true,
     },
   });
+  // const cases = await this.prisma.case.findMany({
+  //   include: {
+  //     createdBy: true,
+  //      status: true,
+  //   },
+  // });
 
   // =========================
   // SUMMARY

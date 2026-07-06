@@ -40,10 +40,15 @@ export class CasesController {
   // GET ALL CASES
   // =========================
   @Get("analytics")
-    @Roles('MANAGER','OWNER')
-  getAnalytics() {
-    return this.cases.getDashboardAnalytics();
+  @Roles('MANAGER', 'Owner')
+  getAnalytics(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.cases.getDashboardAnalytics(from, to);
   }
+  // @Get("analytics")
+  //   @Roles('MANAGER','OWNER')
+  // getAnalytics() {
+  //   return this.cases.getDashboardAnalytics();
+  // }
 
   @Get()
   @Permissions('case.read.own', 'case.read.all')
