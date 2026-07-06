@@ -427,6 +427,30 @@ async create(data: any, user: any) {
       },
     });
 
+        if (resolvedAssignees?.length) {
+  const collaborators = await tx.user.findMany({
+    where: {
+      id: {
+        in: resolvedAssignees.map((a) => a.id),
+      },
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+  await tx.caseActivity.createMany({
+    data: collaborators.map((collaborator) => ({
+      caseId: caseItem.id,
+      userId: user.sub,
+      type: 'COLLABORATOR_ADDED',
+      message: `Collaborator ${collaborator.firstName} ${collaborator.lastName} added by ${fullName}`,
+    })),
+  });
+}
+
     // =========================
     // NOTE ACTIVITY
     // =========================
@@ -966,6 +990,22 @@ async findOne(id: number, user: any) {
   let assigneeData: any = {};
   const resolvedAssignees = await this.resolveAssignees(assigneeIds);
 
+  // =========================
+const oldAssigneeIds = caseItem.assignees.map((a) => a.id);
+
+const newAssigneeIds =
+  resolvedAssignees !== null
+    ? resolvedAssignees.map((a) => a.id)
+    : oldAssigneeIds;
+
+const addedAssigneeIds = newAssigneeIds.filter(
+  (id) => !oldAssigneeIds.includes(id),
+);
+
+const removedAssigneeIds = oldAssigneeIds.filter(
+  (id) => !newAssigneeIds.includes(id),
+);
+
   if (resolvedAssignees !== null) {
     assigneeData = {
       assignees: {
@@ -1122,6 +1162,52 @@ async findOne(id: number, user: any) {
       },
     });
   }
+
+  if (addedAssigneeIds.length) {
+  const addedUsers = await this.prisma.user.findMany({
+    where: {
+      id: {
+        in: addedAssigneeIds,
+      },
+    },
+    select: {
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+  await this.prisma.caseActivity.createMany({
+    data: addedUsers.map((u) => ({
+      caseId: id,
+      userId: user.sub,
+      type: 'COLLABORATOR_ADDED',
+      message: `Collaborator ${u.firstName} ${u.lastName} added by ${fullName}`,
+    })),
+  });
+}
+
+if (removedAssigneeIds.length) {
+  const removedUsers = await this.prisma.user.findMany({
+    where: {
+      id: {
+        in: removedAssigneeIds,
+      },
+    },
+    select: {
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+  await this.prisma.caseActivity.createMany({
+    data: removedUsers.map((u) => ({
+      caseId: id,
+      userId: user.sub,
+      type: 'COLLABORATOR_REMOVED',
+      message: `Collaborator ${u.firstName} ${u.lastName} removed by ${fullName}`,
+    })),
+  });
+}
 
   return {
     success: true,
