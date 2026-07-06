@@ -117,46 +117,46 @@ export class CasesService {
    *
    * Structure: <appRoot>/<Suspect> - <caseNumber>/Reports + /CompletedRequests
    */
-  async linkDriveFolders(id: number, user: any) {
-    const caseItem = await this.prisma.case.findUnique({
-      where: { id },
-      include: { assignees: { select: { id: true } } },
-    });
-    if (!caseItem) {
-      throw new NotFoundException('Case not found');
-    }
+  // async linkDriveFolders(id: number, user: any) {
+  //   const caseItem = await this.prisma.case.findUnique({
+  //     where: { id },
+  //     include: { assignees: { select: { id: true } } },
+  //   });
+  //   if (!caseItem) {
+  //     throw new NotFoundException('Case not found');
+  //   }
 
-    if (!this.canEditCase(caseItem, user)) {
-      throw new ForbiddenException('You cannot link Drive folders for this case');
-    }
+  //   if (!this.canEditCase(caseItem, user)) {
+  //     throw new ForbiddenException('You cannot link Drive folders for this case');
+  //   }
 
-    const suspect = caseItem.suspectName?.trim() || 'Unknown';
-    const label = `${suspect} - ${caseItem.caseNumber}`;
+  //   const suspect = caseItem.suspectName?.trim() || 'Unknown';
+  //   const label = `${suspect} - ${caseItem.caseNumber}`;
 
-    const folders = await this.drive.getOrCreateCaseFolders(user.sub, label);
+  //   const folders = await this.drive.getOrCreateCaseFolders(user.sub, label);
 
-    const updated = await this.prisma.case.update({
-      where: { id },
-      data: {
-        driveFolderId: folders.folderId,
-        driveReportsFolderId: folders.reportsFolderId,
-        driveCompletedFolderId: folders.completedFolderId,
-        driveReportsUrl: folders.reportsUrl,
-        driveCompletedUrl: folders.completedUrl,
-      },
-    });
+  //   const updated = await this.prisma.case.update({
+  //     where: { id },
+  //     data: {
+  //       driveFolderId: folders.folderId,
+  //       driveReportsFolderId: folders.reportsFolderId,
+  //       driveCompletedFolderId: folders.completedFolderId,
+  //       driveReportsUrl: folders.reportsUrl,
+  //       driveCompletedUrl: folders.completedUrl,
+  //     },
+  //   });
 
-    return {
-      success: true,
-      message: 'Google Drive folders linked',
-      data: {
-        folderUrl: folders.folderUrl,
-        reportsUrl: updated.driveReportsUrl,
-        completedUrl: updated.driveCompletedUrl,
-        // activeUrl: this.activeDriveUrl(updated),
-      },
-    };
-  }
+  //   return {
+  //     success: true,
+  //     message: 'Google Drive folders linked',
+  //     data: {
+  //       folderUrl: folders.folderUrl,
+  //       reportsUrl: updated.driveReportsUrl,
+  //       completedUrl: updated.driveCompletedUrl,
+  //       // activeUrl: this.activeDriveUrl(updated),
+  //     },
+  //   };
+  // }
 
   /**
    * Upload a file into the case's correct Drive folder and record it.

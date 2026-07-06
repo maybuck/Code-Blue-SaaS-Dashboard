@@ -126,12 +126,6 @@ model Case {
   dateCompleted   DateTime?
   potential       String?
 
-  // Google Drive
-  driveFolderId          String?
-  driveReportsFolderId   String?
-  driveCompletedFolderId String?
-  driveReportsUrl        String?
-  driveCompletedUrl      String?
 
   // Assignment
   createdById     Int
