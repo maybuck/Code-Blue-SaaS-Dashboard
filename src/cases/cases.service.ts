@@ -317,9 +317,19 @@ async create(data: any, user: any) {
   // =========================
   // DEFAULT STATUS
   // =========================
-  const defaultStatus = await this.prisma.status.findFirst({
-    where: { key: 'REPORT_REQUESTED' },
-  });
+ let defaultStatus: any = null;
+
+  if (data.statusId) {
+    defaultStatus = await this.prisma.status.findUnique({
+      where: { id: Number(data.statusId) },
+    });
+  }
+
+  if (!defaultStatus) {
+    defaultStatus = await this.prisma.status.findFirst({
+      where: { key: 'REPORT_REQUESTED' },
+    });
+  }
 
   if (!defaultStatus) {
     throw new BadRequestException('Default status not found');
