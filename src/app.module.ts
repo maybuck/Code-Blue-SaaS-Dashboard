@@ -9,6 +9,7 @@ import { AgenciesModule } from './agencies/agencies.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { UploadModule } from './uploads/upload.module';
 import { CaseMediaModule } from './case-media/case-media.module';
+import { IncidentTypeModule } from './incident-type/incident-type.module';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { CaseMediaModule } from './case-media/case-media.module';
     AgenciesModule,
     UploadModule,
     StatusesModule,
-    CaseMediaModule
+    CaseMediaModule,
+    IncidentTypeModule
   ],
   controllers: [AppController],
   providers: [AppService],

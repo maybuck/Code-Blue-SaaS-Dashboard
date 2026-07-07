@@ -252,4 +252,11 @@ model CaseMedia {
   @@map("case_media")
 }
 
+model IncidentType {
+  id          Int      @id @default(autoincrement())
+  title       String?
+  description String?
 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
