@@ -126,6 +126,9 @@ model Case {
   dateCompleted   DateTime?
   potential       String?
 
+    reminderNote    String?
+  reminderDate   DateTime?
+
 
   // Assignment
   createdById     Int

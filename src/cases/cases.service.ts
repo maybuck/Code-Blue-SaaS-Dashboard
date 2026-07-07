@@ -391,6 +391,11 @@ async create(data: any, user: any) {
         suspectName: data.suspectName,
         age: data.age,
 
+         reminderNote:data.reminderNote,
+        reminderDate: data.reminderDate
+  ? new Date(data.reminderDate)
+  : null,
+
         title: data.title,
         description: data.description,
         incidentSummary: data.incidentSummary,
@@ -1062,6 +1067,12 @@ const removedAssigneeIds = oldAssigneeIds.filter(
           duplicateOfId: null,
         };
   }
+
+   if (caseData.reminderDate) {
+  caseData.reminderDate = new Date(
+    `${caseData.reminderDate}T00:00:00.000Z`,
+  );
+}
 
   // =========================
   // UPDATE CASE
