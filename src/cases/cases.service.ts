@@ -9,18 +9,39 @@ import { PrismaService } from 'src/prisma/prisma.service';
 
 // Allowed status transitions. Keep in sync with the frontend (lib/workflow.js).
 // VOIDED is reachable from any open status; COMPLETED and VOIDED are terminal.
+// const STATUS_TRANSITIONS: Record<string, string[]> = {
+//   REPORT_REQUESTED: ['REPORT_RECEIVED', 'VOIDED'],
+//   REPORT_RECEIVED:  ['AWAITING_REVIEW', 'VOIDED'],
+//   AWAITING_REVIEW:  ['APPROVED', 'VOIDED'],
+//   APPROVED:         ['MEDIA_REQUESTED', 'VOIDED'],
+//   MEDIA_REQUESTED:  ['MEDIA_APPROVED', 'VOIDED'],   // go through approval, not straight to COMPLETED
+//   MEDIA_APPROVED:   ['COMPLETED', 'VOIDED'],        // ← add this line (was missing)
+//   COMPLETED:        ['IN_PROGRESS'],
+//   IN_PROGRESS:      ['PUBLISHED'],
+//   PUBLISHED:        [],
+//   // A mistakenly voided case can be restored to Approved by a manager.
+//   VOIDED:           ['APPROVED'],
+// };
+
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  REPORT_REQUESTED: ['REPORT_RECEIVED', 'VOIDED'],
-  REPORT_RECEIVED:  ['AWAITING_REVIEW', 'VOIDED'],
-  AWAITING_REVIEW:  ['APPROVED', 'VOIDED'],
-  APPROVED:         ['MEDIA_REQUESTED', 'VOIDED'],
-  MEDIA_REQUESTED:  ['MEDIA_APPROVED', 'VOIDED'],   // go through approval, not straight to COMPLETED
-  MEDIA_APPROVED:   ['COMPLETED', 'VOIDED'],        // ← add this line (was missing)
-  COMPLETED:        ['IN_PROGRESS'],
-  IN_PROGRESS:      ['PUBLISHED'],
-  PUBLISHED:        [],
+  // A draft is private to its creator until submitted.
+  DRAFT: ['REPORT_REQUESTED', 'VOIDED'],
+
+  // A requested report can be received, put on hold (Open), or voided.
+  REPORT_REQUESTED: ['REPORT_RECEIVED', 'OPEN', 'VOIDED'],
+
+  // Open = on hold (agency won't release yet). Resume forward, or send back.
+  OPEN: ['REPORT_RECEIVED', 'REPORT_REQUESTED', 'VOIDED'],
+
+  REPORT_RECEIVED: ['AWAITING_REVIEW', 'VOIDED'],
+  AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
+  APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
+  MEDIA_REQUESTED: ['MEDIA_APPROVED', 'VOIDED'],
+  MEDIA_APPROVED: ['COMPLETED', 'VOIDED'],
+  COMPLETED: [],
+
   // A mistakenly voided case can be restored to Approved by a manager.
-  VOIDED:           ['APPROVED'],
+  VOIDED: ['APPROVED'],
 };
 
 @Injectable()
