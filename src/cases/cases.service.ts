@@ -46,10 +46,12 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   // Kept so any legacy cases sitting at Media Approved can still complete.
   MEDIA_APPROVED: ['COMPLETED', 'VOIDED'],
 
-  // Completed cases move into the editorial pipeline (owner/manager).
+  // Completed cases move into the editorial pipeline (owner/manager). The
+  // editorial stage can move both ways so the board stays in sync with the
+  // editor status.
   COMPLETED: ['IN_PROGRESS'],
   IN_PROGRESS: ['PUBLISHED', 'VOIDED'],
-  PUBLISHED: [],
+  PUBLISHED: ['IN_PROGRESS'],
 
   // A mistakenly voided case can be restored to Approved by a manager.
   VOIDED: ['APPROVED'],
