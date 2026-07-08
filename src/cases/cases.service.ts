@@ -33,12 +33,23 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   // Open = on hold (agency won't release yet). Resume forward, or send back.
   OPEN: ['REPORT_RECEIVED', 'REPORT_REQUESTED', 'VOIDED'],
 
-  REPORT_RECEIVED: ['AWAITING_REVIEW', 'VOIDED'],
+  // Received report → send to review, or step back to Requested.
+  REPORT_RECEIVED: ['AWAITING_REVIEW', 'REPORT_REQUESTED', 'VOIDED'],
+
   AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
   APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
-  MEDIA_REQUESTED: ['MEDIA_APPROVED', 'VOIDED','COMPLETED'],
+
+  // Media Approved is retired: once media is requested and uploaded the
+  // researcher marks the case Completed directly. Can also step back to Approved.
+  MEDIA_REQUESTED: ['COMPLETED', 'APPROVED', 'VOIDED'],
+
+  // Kept so any legacy cases sitting at Media Approved can still complete.
   MEDIA_APPROVED: ['COMPLETED', 'VOIDED'],
-  COMPLETED: [],
+
+  // Completed cases move into the editorial pipeline (owner/manager).
+  COMPLETED: ['IN_PROGRESS'],
+  IN_PROGRESS: ['PUBLISHED', 'VOIDED'],
+  PUBLISHED: [],
 
   // A mistakenly voided case can be restored to Approved by a manager.
   VOIDED: ['APPROVED'],
