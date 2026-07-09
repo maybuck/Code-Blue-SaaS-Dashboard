@@ -465,54 +465,53 @@ async create(data: any, user: any) {
     // =========================
     // CASE CREATED ACTIVITY
     // =========================
-    await tx.caseActivity.create({
-      data: {
-        caseId: caseItem.id,
-        userId: user.sub,
-        type: 'CASE_CREATED',
-        message: isDuplicate
-          ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
-          : `Case created by ${fullName}`,
+// Skip activity creation for Draft cases
+if (defaultStatus.key !== 'DRAFT') {
+  await tx.caseActivity.create({
+    data: {
+      caseId: caseItem.id,
+      userId: user.sub,
+      type: 'CASE_CREATED',
+      message: isDuplicate
+        ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
+        : `Case created by ${fullName}`,
+    },
+  });
+
+  await tx.caseActivity.create({
+    data: {
+      caseId: caseItem.id,
+      userId: user.sub,
+      type: 'STATUS_CHANGED',
+      message: `Status set to ${defaultStatus.key} by ${fullName}`,
+    },
+  });
+
+  if (resolvedAssignees?.length) {
+    const collaborators = await tx.user.findMany({
+      where: {
+        id: {
+          in: resolvedAssignees.map((a) => a.id),
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
       },
     });
 
-    await tx.caseActivity.create({
-  data: {
-    caseId: caseItem.id,
-    userId: user.sub,
-    type: 'STATUS_CHANGED',
-    message: `Status set to ${defaultStatus.key} by ${fullName}`,
-  },
-});
+    await tx.caseActivity.createMany({
+      data: collaborators.map((collaborator) => ({
+        caseId: caseItem.id,
+        userId: user.sub,
+        type: 'COLLABORATOR_ADDED',
+        message: `Collaborator ${collaborator.firstName} ${collaborator.lastName} added by ${fullName}`,
+      })),
+    });
+  }
 
-        if (resolvedAssignees?.length) {
-  const collaborators = await tx.user.findMany({
-    where: {
-      id: {
-        in: resolvedAssignees.map((a) => a.id),
-      },
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  await tx.caseActivity.createMany({
-    data: collaborators.map((collaborator) => ({
-      caseId: caseItem.id,
-      userId: user.sub,
-      type: 'COLLABORATOR_ADDED',
-      message: `Collaborator ${collaborator.firstName} ${collaborator.lastName} added by ${fullName}`,
-    })),
-  });
-}
-
-    // =========================
-    // NOTE ACTIVITY
-    // =========================
-    if (data.notes?.trim()) {
+   if (data.notes?.trim()) {
       await tx.caseActivity.create({
         data: {
           caseId: caseItem.id,
@@ -522,6 +521,11 @@ async create(data: any, user: any) {
         },
       });
     }
+}
+    // =========================
+    // NOTE ACTIVITY
+    // =========================
+   
 
     // =========================
     // 📎 CASE MEDIA (PDF UPLOAD)
@@ -1178,17 +1182,38 @@ const removedAssigneeIds = oldAssigneeIds.filter(
   // =========================
   // LOGS
   // =========================
-  if (statusData.statusId) {
-    const newStatusKey = updated.status?.key ?? null;
+ if (statusData.statusId) {
+  const newStatusKey = updated.status?.key ?? null;
+
+  // If this is the first time the draft is being submitted,
+  // create the CASE_CREATED activity.
+  if (oldStatusKey === 'DRAFT' && newStatusKey !== 'DRAFT') {
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
-        type: 'STATUS_CHANGED',
-         message: `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`,
+        type: 'CASE_CREATED',
+        message: caseItem.isDuplicate
+          ? `Duplicate case created by ${fullName}. Linked to Case #${caseItem.duplicateOfId}`
+          : `Case created by ${fullName}`,
       },
     });
   }
+
+ const statusMessage =
+  oldStatusKey === 'DRAFT'
+    ? `Status changed to ${newStatusKey} by ${fullName}`
+    : `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`;
+
+await this.prisma.caseActivity.create({
+  data: {
+    caseId: id,
+    userId: user.sub,
+    type: 'STATUS_CHANGED',
+    message: statusMessage,
+  },
+});
+}
 
   if (dto.assignedToId && dto.assignedToId !== oldAssignedTo) {
     await this.prisma.caseActivity.create({
