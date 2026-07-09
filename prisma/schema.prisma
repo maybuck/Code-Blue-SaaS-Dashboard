@@ -247,6 +247,8 @@ model CaseMedia {
   label         String?
   mediaType     String   // image, video, audio, pdf, document
 
+   isReport      Boolean  @default(false)
+
   createdAt     DateTime @default(now())
 
   @@index([caseId])

@@ -538,6 +538,7 @@ if (defaultStatus.key !== 'DRAFT') {
           fileName: data.pdfName ?? 'document.pdf',
           fileUrl: data.pdfUrl,
           mediaType: 'pdf',
+           isReport: data.isReport ?? false
         },
       });
     }
