@@ -1043,6 +1043,12 @@ async findOne(id: number, user: any) {
     }
 
     statusData.statusId = newStatus.id;
+
+    if (newStatus.key === 'COMPLETED') {
+      statusData.dateCompleted = new Date();
+    } else if (oldStatusKey === 'COMPLETED') {
+      statusData.dateCompleted = null;
+    }
   }
 
   const { note: incomingNote, assigneeIds, ...caseData } = dto;
