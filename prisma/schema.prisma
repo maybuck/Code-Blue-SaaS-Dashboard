@@ -125,7 +125,8 @@ model Case {
   // Completion
   dateCompleted   DateTime?
   potential       String?
-
+ caseReference   String?
+ 
     reminderNote    String?
   reminderDate   DateTime?
 

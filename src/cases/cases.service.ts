@@ -426,6 +426,7 @@ async create(data: any, user: any) {
         policeAgency: agencyLink.policeAgency ?? data.policeAgency,
         agencyId: agencyLink.agencyId ?? null,
         enteredBy: data.enteredBy,
+        caseReference :data.caseReference,
 
         incidentDate: data.incidentDate
           ? new Date(data.incidentDate)
@@ -434,6 +435,7 @@ async create(data: any, user: any) {
         location: data.location,
         suspectName: data.suspectName,
         age: data.age,
+
 
          reminderNote:data.reminderNote,
         reminderDate: data.reminderDate
