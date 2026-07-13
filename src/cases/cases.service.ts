@@ -545,6 +545,18 @@ if (defaultStatus.key !== 'DRAFT') {
       });
     }
 
+    if (data.caseFolderUrl) {
+  await tx.caseMedia.create({
+    data: {
+      caseId: caseItem.id,
+      uploadedById: user.sub,
+      fileName: data.caseFolderName ?? 'Case Folder',
+      fileUrl: data.caseFolderUrl,
+      mediaType: 'link',
+      isReport: false,
+    },
+  });
+}
     return caseItem;
   });
 
