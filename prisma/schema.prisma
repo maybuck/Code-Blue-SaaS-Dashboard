@@ -121,6 +121,7 @@ model Case {
 
   // Media
   mediaType       String?
+  caseGoogleDriveLink  String?
 
   // Completion
   dateCompleted   DateTime?
