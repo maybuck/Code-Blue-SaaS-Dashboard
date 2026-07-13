@@ -96,6 +96,7 @@ model Case {
   // Submission Info
   dateSubmitted   DateTime   @default(now())
   submittedVia    String?
+  caseNotes       String?
 
   // Agency Info
   policeAgency    String?
