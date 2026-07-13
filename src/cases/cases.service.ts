@@ -23,6 +23,54 @@ import { PrismaService } from 'src/prisma/prisma.service';
 //   VOIDED:           ['APPROVED'],
 // };
 
+// const STATUS_TRANSITIONS: Record<string, string[]> = {
+//   // A draft is private to its creator until submitted.
+//   DRAFT: ['REPORT_REQUESTED', 'VOIDED'],
+
+//   // A requested report can be received, put on hold (Open), or voided.
+//   REPORT_REQUESTED: ['REPORT_RECEIVED', 'OPEN', 'VOIDED'],
+
+//   // Open = on hold (agency won't release yet). Resume forward, or send back.
+//   OPEN: ['REPORT_RECEIVED', 'REPORT_REQUESTED', 'VOIDED'],
+
+//   // Received report → send to review, or step back to Requested.
+//   REPORT_RECEIVED: ['AWAITING_REVIEW', 'REPORT_REQUESTED', 'VOIDED'],
+
+//   AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
+//   APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
+
+//   // Media Approved is retired: once media is requested and uploaded the
+//   // researcher marks the case Completed directly. Can also step back to Approved.
+//   MEDIA_REQUESTED: ['COMPLETED', 'APPROVED', 'VOIDED'],
+
+//   // Kept so any legacy cases sitting at Media Approved can still complete.
+//   MEDIA_APPROVED: ['COMPLETED', 'VOIDED'],
+
+//   // Completed cases move into the editorial pipeline (owner/manager). The
+//   // editorial stage can move both ways so the board stays in sync with the
+//   // editor status.
+//   COMPLETED: ['IN_PROGRESS'],
+//   IN_PROGRESS: ['PUBLISHED', 'VOIDED'],
+//   PUBLISHED: ['IN_PROGRESS'],
+
+//   // A mistakenly voided case can be restored to Approved by a manager.
+//   VOIDED: ['APPROVED'],
+// };
+
+const POST_APPROVAL = [
+  // Earlier stages too, so the "Change stage" dropdown can move a case all the
+  // way back (e.g. Completed → Media Requested, or back to Report Requested).
+  'REPORT_REQUESTED',
+  'REPORT_RECEIVED',
+  'AWAITING_REVIEW',
+  'APPROVED',
+  'MEDIA_REQUESTED',
+  'COMPLETED',
+  'IN_PROGRESS',
+  'PUBLISHED',
+  'VOIDED',
+];
+
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   // A draft is private to its creator until submitted.
   DRAFT: ['REPORT_REQUESTED', 'VOIDED'],
@@ -37,26 +85,21 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
   REPORT_RECEIVED: ['AWAITING_REVIEW', 'REPORT_REQUESTED', 'VOIDED'],
 
   AWAITING_REVIEW: ['APPROVED', 'VOIDED'],
-  APPROVED: ['MEDIA_REQUESTED', 'VOIDED'],
 
-  // Media Approved is retired: once media is requested and uploaded the
-  // researcher marks the case Completed directly. Can also step back to Approved.
-  MEDIA_REQUESTED: ['COMPLETED', 'APPROVED', 'VOIDED'],
-
-  // Kept so any legacy cases sitting at Media Approved can still complete.
-  MEDIA_APPROVED: ['COMPLETED', 'VOIDED'],
-
-  // Completed cases move into the editorial pipeline (owner/manager). The
-  // editorial stage can move both ways so the board stays in sync with the
-  // editor status.
-  COMPLETED: ['IN_PROGRESS'],
-  IN_PROGRESS: ['PUBLISHED', 'VOIDED'],
-  PUBLISHED: ['IN_PROGRESS'],
+  // From Approved onward the stage can be moved freely (forwards or backwards)
+  // via the "Change stage" dropdown — e.g. Completed → Media Requested if more
+  // footage is needed. POST_APPROVAL is the fully-connected set of these stages.
+  APPROVED: POST_APPROVAL,
+  MEDIA_REQUESTED: POST_APPROVAL,
+  // Kept so any legacy cases sitting at Media Approved can still move on.
+  MEDIA_APPROVED: [...POST_APPROVAL, 'COMPLETED'],
+  COMPLETED: POST_APPROVAL,
+  IN_PROGRESS: POST_APPROVAL,
+  PUBLISHED: POST_APPROVAL,
 
   // A mistakenly voided case can be restored to Approved by a manager.
   VOIDED: ['APPROVED'],
 };
-
 @Injectable()
 export class CasesService {
   constructor(
