@@ -145,13 +145,13 @@ async login(
   };
 
   const token = await this.jwt.signAsync(payload, {
-    expiresIn: rememberMe ? '10min' : '2min', // customize as needed
+    expiresIn: rememberMe ? '30d' : '1d', // customize as needed
   });
 
   return {
     access_token: token,
     token_type: 'Bearer',
-    expires_in: rememberMe ? '10min' : '2min',
+    expires_in: rememberMe ? '30d' : '1d',
     user: this.sanitize(user),
   };
 }
