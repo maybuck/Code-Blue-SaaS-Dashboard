@@ -994,12 +994,38 @@ async findOne(id: number, user: any) {
     throw new NotFoundException('Case not found');
   }
 
+  // Other cases that share this suspect's name. Computed here (guarded so it can
+  // never fail the request) so the frontend doesn't need a separate search call.
+  let possibleDuplicates: any[] = [];
+  try {
+    const name = (caseItem.suspectName || '').trim();
+    if (name) {
+      possibleDuplicates = await this.prisma.case.findMany({
+        where: {
+          id: { not: caseItem.id },
+          suspectName: { equals: name, mode: 'insensitive' },
+        },
+        select: {
+          id: true,
+          caseNumber: true,
+          suspectName: true,
+          status: true,
+          createdBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+      });
+    }
+  } catch {
+    possibleDuplicates = [];
+  }
+
   return {
     success: true,
     message: 'Case fetched successfully',
     data: {
       ...caseItem,
-
+      possibleDuplicates,
     },
   };
 }
