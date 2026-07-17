@@ -65,47 +65,96 @@ export class AuthService {
   // =========================
   // LOGIN
   // =========================
-  async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
-  where: { email },
-  include: {
-    role: {
-      include: {
-        permissions: {
-          include: {
-            permission: true,
+//   async login(email: string, password: string) {
+//     const user = await this.prisma.user.findUnique({
+//   where: { email },
+//   include: {
+//     role: {
+//       include: {
+//         permissions: {
+//           include: {
+//             permission: true,
+//           },
+//         },
+//       },
+//     },
+//   },
+// });
+
+//     if (!user) {
+//       throw new UnauthorizedException('Invalid credentials');
+//     }
+
+//     const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+//     if (!isMatch) {
+//       throw new UnauthorizedException('Invalid credentials');
+//     }
+
+//     const payload = {
+//       sub: user.id,
+//       email: user.email,
+//       role: user.role.name,
+//       roleId: user.role.id,
+//     };
+
+//     const token = this.jwt.sign(payload);
+
+//     return {
+//       access_token: token,
+//       token_type: 'Bearer',
+//       user: this.sanitize(user),
+//     };
+//   }
+
+async login(
+  email: string,
+  password: string,
+  rememberMe = false,
+) {
+  const user = await this.prisma.user.findUnique({
+    where: { email },
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
           },
         },
       },
     },
-  },
-});
+  });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role.name,
-      roleId: user.role.id,
-    };
-
-    const token = this.jwt.sign(payload);
-
-    return {
-      access_token: token,
-      token_type: 'Bearer',
-      user: this.sanitize(user),
-    };
+  if (!user) {
+    throw new UnauthorizedException('Invalid credentials');
   }
+
+  const isMatch = await bcrypt.compare(password, user.passwordHash);
+
+  if (!isMatch) {
+    throw new UnauthorizedException('Invalid credentials');
+  }
+
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    role: user.role.name,
+    roleId: user.role.id,
+  };
+
+  const token = await this.jwt.signAsync(payload, {
+    expiresIn: rememberMe ? '10min' : '2min', // customize as needed
+  });
+
+  return {
+    access_token: token,
+    token_type: 'Bearer',
+    expires_in: rememberMe ? '10min' : '2min',
+    user: this.sanitize(user),
+  };
+}
 
   // =========================
   // SANITIZE RESPONSE

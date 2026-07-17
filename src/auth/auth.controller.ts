@@ -12,6 +12,6 @@ export class AuthController {
 
   @Post('login')
   login(@Body() body: any) {
-    return this.auth.login(body.email, body.password);
+    return this.auth.login(body.email, body.password, body.rememberMe);
   }
 }
