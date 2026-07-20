@@ -2024,6 +2024,11 @@ try {
     if (!caseItem) {
       throw new NotFoundException('Case not found');
     }
+    if (caseItem.createdById === user.sub) {
+  throw new BadRequestException(
+    'You cannot claim a case that you created.',
+  );
+}
 
     if (caseItem.status.key !== 'UNASSIGNED') {
       throw new BadRequestException('This case is not available for claiming');
