@@ -64,6 +64,17 @@ export class CasesController {
     return this.cases.getActivityFeed(req.user);
   }
 
+   @Patch(':id/claim')
+  async claimCase(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    return this.cases.claimCase(
+      id,
+      req.user,
+    );
+  }
+
 
   // =========================
   // GET SINGLE CASE

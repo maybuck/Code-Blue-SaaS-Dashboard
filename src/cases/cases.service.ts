@@ -102,9 +102,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 };
 @Injectable()
 export class CasesService {
-  constructor(
-    private prisma: PrismaService
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   // =========================
   // EDIT PERMISSION
@@ -124,7 +122,9 @@ export class CasesService {
   private async resolveAssignees(ids: any): Promise<{ id: number }[] | null> {
     if (ids === undefined) return null; // not provided -> leave unchanged
     if (!Array.isArray(ids)) return [];
-    const unique = [...new Set(ids.map((i) => Number(i)).filter((i) => !Number.isNaN(i)))];
+    const unique = [
+      ...new Set(ids.map((i) => Number(i)).filter((i) => !Number.isNaN(i))),
+    ];
     if (unique.length === 0) return [];
     const found = await this.prisma.user.findMany({
       where: { id: { in: unique } },
@@ -171,1229 +171,1229 @@ export class CasesService {
     return {};
   }
 
+  // async create(data: any, user: any) {
+  //   if (!user.permissions?.includes('case.create')) {
+  //     throw new ForbiddenException('You cannot create cases');
+  //   }
 
+  //   const dbUser = await this.prisma.user.findUnique({
+  //     where: { id: user.sub },
+  //     select: {
+  //       firstName: true,
+  //       lastName: true,
+  //     },
+  //   });
 
-// async create(data: any, user: any) {
-//   if (!user.permissions?.includes('case.create')) {
-//     throw new ForbiddenException('You cannot create cases');
-//   }
+  //   const fullName = dbUser
+  //     ? `${dbUser.firstName} ${dbUser.lastName}`
+  //     : 'Unknown User';
 
-//   const dbUser = await this.prisma.user.findUnique({
-//     where: { id: user.sub },
-//     select: {
-//       firstName: true,
-//       lastName: true,
-//     },
-//   });
+  //   // =========================
+  //   // GET DEFAULT STATUS
+  //   // =========================
+  //   const defaultStatus = await this.prisma.status.findFirst({
+  //     where: { key: 'REPORT_REQUESTED' },
+  //   });
 
-//   const fullName = dbUser
-//     ? `${dbUser.firstName} ${dbUser.lastName}`
-//     : 'Unknown User';
+  //   if (!defaultStatus) {
+  //     throw new BadRequestException('Default status not found');
+  //   }
 
-//   // =========================
-//   // GET DEFAULT STATUS
-//   // =========================
-//   const defaultStatus = await this.prisma.status.findFirst({
-//     where: { key: 'REPORT_REQUESTED' },
-//   });
+  //   // =========================
+  //   // DUPLICATE CHECK
+  //   // =========================
+  //   let isDuplicate = false;
+  //   let duplicateOfId: number | null = null;
 
-//   if (!defaultStatus) {
-//     throw new BadRequestException('Default status not found');
-//   }
+  //   if (data.suspectName) {
+  //     const existingCase = await this.prisma.case.findFirst({
+  //       where: {
+  //         suspectName: {
+  //           equals: data.suspectName.trim(),
+  //           mode: 'insensitive',
+  //         },
+  //         isDuplicate: false,
+  //       },
+  //       orderBy: {
+  //         createdAt: 'asc',
+  //       },
+  //     });
 
-//   // =========================
-//   // DUPLICATE CHECK
-//   // =========================
-//   let isDuplicate = false;
-//   let duplicateOfId: number | null = null;
+  //     if (existingCase) {
+  //       isDuplicate = true;
+  //       duplicateOfId = existingCase.id;
+  //     }
+  //   }
 
-//   if (data.suspectName) {
-//     const existingCase = await this.prisma.case.findFirst({
-//       where: {
-//         suspectName: {
-//           equals: data.suspectName.trim(),
-//           mode: 'insensitive',
-//         },
-//         isDuplicate: false,
-//       },
-//       orderBy: {
-//         createdAt: 'asc',
-//       },
-//     });
+  //   // =========================
+  //   // VALIDATE ASSIGNEE
+  //   // =========================
+  //   let assignedToId: number | null = null;
 
-//     if (existingCase) {
-//       isDuplicate = true;
-//       duplicateOfId = existingCase.id;
-//     }
-//   }
+  //   if (data.assignedToId) {
+  //     const assignee = await this.prisma.user.findUnique({
+  //       where: { id: Number(data.assignedToId) },
+  //       select: { id: true },
+  //     });
 
-//   // =========================
-//   // VALIDATE ASSIGNEE
-//   // =========================
-//   let assignedToId: number | null = null;
+  //     if (!assignee) {
+  //       throw new NotFoundException(
+  //         `Assigned user ${data.assignedToId} not found`,
+  //       );
+  //     }
 
-//   if (data.assignedToId) {
-//     const assignee = await this.prisma.user.findUnique({
-//       where: { id: Number(data.assignedToId) },
-//       select: { id: true },
-//     });
+  //     assignedToId = assignee.id;
+  //   }
 
-//     if (!assignee) {
-//       throw new NotFoundException(
-//         `Assigned user ${data.assignedToId} not found`,
-//       );
-//     }
+  //   // =========================
+  //   // RESOLVE AGENCY
+  //   // =========================
+  //   const agencyLink = await this.resolveAgency(data);
 
-//     assignedToId = assignee.id;
-//   }
+  //   // =========================
+  //   // RESOLVE ASSIGNEES
+  //   // =========================
+  //   const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
 
-//   // =========================
-//   // RESOLVE AGENCY
-//   // =========================
-//   const agencyLink = await this.resolveAgency(data);
+  //   const assigneeConnect =
+  //     resolvedAssignees?.length
+  //       ? { assignees: { connect: resolvedAssignees } }
+  //       : {};
 
-//   // =========================
-//   // RESOLVE ASSIGNEES
-//   // =========================
-//   const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
+  //   // =========================
+  //   // CREATE CASE + ACTIVITIES (TRANSACTION)
+  //   // =========================
+  //   const result = await this.prisma.$transaction(async (tx) => {
+  //     // CREATE CASE
+  //     const caseItem = await tx.case.create({
+  //       data: {
+  //         ...assigneeConnect,
 
-//   const assigneeConnect =
-//     resolvedAssignees?.length
-//       ? { assignees: { connect: resolvedAssignees } }
-//       : {};
+  //         caseNumber: data.caseNumber ?? null,
+  //         submittedVia: data.submittedVia,
 
-//   // =========================
-//   // CREATE CASE + ACTIVITIES (TRANSACTION)
-//   // =========================
-//   const result = await this.prisma.$transaction(async (tx) => {
-//     // CREATE CASE
-//     const caseItem = await tx.case.create({
-//       data: {
-//         ...assigneeConnect,
+  //         dateSubmitted: data.dateSubmitted
+  //           ? new Date(data.dateSubmitted)
+  //           : new Date(),
 
-//         caseNumber: data.caseNumber ?? null,
-//         submittedVia: data.submittedVia,
+  //         policeAgency: agencyLink.policeAgency ?? data.policeAgency,
+  //         agencyId: agencyLink.agencyId ?? null,
+  //         enteredBy: data.enteredBy,
 
-//         dateSubmitted: data.dateSubmitted
-//           ? new Date(data.dateSubmitted)
-//           : new Date(),
+  //         incidentDate: data.incidentDate
+  //           ? new Date(data.incidentDate)
+  //           : null,
 
-//         policeAgency: agencyLink.policeAgency ?? data.policeAgency,
-//         agencyId: agencyLink.agencyId ?? null,
-//         enteredBy: data.enteredBy,
+  //         location: data.location,
+  //         suspectName: data.suspectName,
+  //         age: data.age,
 
-//         incidentDate: data.incidentDate
-//           ? new Date(data.incidentDate)
-//           : null,
+  //         title: data.title,
+  //         description: data.description,
+  //         incidentSummary: data.incidentSummary,
 
-//         location: data.location,
-//         suspectName: data.suspectName,
-//         age: data.age,
+  //         statusId: defaultStatus.id,
 
-//         title: data.title,
-//         description: data.description,
-//         incidentSummary: data.incidentSummary,
+  //         mediaType: data.mediaType,
 
-//         statusId: defaultStatus.id,
+  //         dateCompleted: data.dateCompleted
+  //           ? new Date(data.dateCompleted)
+  //           : null,
 
-//         mediaType: data.mediaType,
+  //         potential: data.potential,
 
-//         dateCompleted: data.dateCompleted
-//           ? new Date(data.dateCompleted)
-//           : null,
+  //         isDuplicate,
+  //         duplicateOfId,
 
+  //         createdById: user.sub,
+  //         assignedToId,
+  //       },
+  //     });
 
-//         potential: data.potential,
+  //     // =========================
+  //     // CASE CREATED ACTIVITY
+  //     // =========================
+  //     await tx.caseActivity.create({
+  //       data: {
+  //         caseId: caseItem.id,
+  //         userId: user.sub,
+  //         type: 'CASE_CREATED',
+  //         message: isDuplicate
+  //           ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
+  //           : `Case created by ${fullName}`,
+  //       },
+  //     });
 
-//         isDuplicate,
-//         duplicateOfId,
+  //     // =========================
+  //     // NOTE ACTIVITY (ONLY IF EXISTS)
+  //     // =========================
+  //     if (data.notes?.trim()) {
+  //       await tx.caseActivity.create({
+  //         data: {
+  //           caseId: caseItem.id,
+  //           userId: user.sub,
+  //           type: 'NOTE_ADDED',
+  //           message: data.notes.trim(),
+  //         },
+  //       });
+  //     }
 
-//         createdById: user.sub,
-//         assignedToId,
-//       },
-//     });
+  //     return caseItem;
+  //   });
 
-//     // =========================
-//     // CASE CREATED ACTIVITY
-//     // =========================
-//     await tx.caseActivity.create({
-//       data: {
-//         caseId: caseItem.id,
-//         userId: user.sub,
-//         type: 'CASE_CREATED',
-//         message: isDuplicate
-//           ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
-//           : `Case created by ${fullName}`,
-//       },
-//     });
+  //   return {
+  //     success: true,
+  //     message: isDuplicate
+  //       ? `Case created — possible duplicate of Case #${duplicateOfId}`
+  //       : 'Case created successfully',
+  //     data: result,
+  //   };
+  // }
 
-//     // =========================
-//     // NOTE ACTIVITY (ONLY IF EXISTS)
-//     // =========================
-//     if (data.notes?.trim()) {
-//       await tx.caseActivity.create({
-//         data: {
-//           caseId: caseItem.id,
-//           userId: user.sub,
-//           type: 'NOTE_ADDED',
-//           message: data.notes.trim(),
-//         },
-//       });
-//     }
-
-//     return caseItem;
-//   });
-
-//   return {
-//     success: true,
-//     message: isDuplicate
-//       ? `Case created — possible duplicate of Case #${duplicateOfId}`
-//       : 'Case created successfully',
-//     data: result,
-//   };
-// }
-
-async create(data: any, user: any) {
-  if (!user.permissions?.includes('case.create')) {
-    throw new ForbiddenException('You cannot create cases');
-  }
-
-  const dbUser = await this.prisma.user.findUnique({
-    where: { id: user.sub },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  const fullName = dbUser
-    ? `${dbUser.firstName} ${dbUser.lastName}`
-    : 'Unknown User';
-
-  // =========================
-  // DEFAULT STATUS
-  // =========================
- let defaultStatus: any = null;
-
-  if (data.statusId) {
-    defaultStatus = await this.prisma.status.findUnique({
-      where: { id: Number(data.statusId) },
-    });
-  }
-
-  if (!defaultStatus) {
-    defaultStatus = await this.prisma.status.findFirst({
-      where: { key: 'REPORT_REQUESTED' },
-    });
-  }
-
-  if (!defaultStatus) {
-    throw new BadRequestException('Default status not found');
-  }
-
-  // =========================
-  // DUPLICATE CHECK
-  // =========================
-  let isDuplicate = false;
-  let duplicateOfId: number | null = null;
-
-  if (data.suspectName) {
-    const existingCase = await this.prisma.case.findFirst({
-      where: {
-        suspectName: {
-          equals: data.suspectName.trim(),
-          mode: 'insensitive',
-        },
-        isDuplicate: false,
-      },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (existingCase) {
-      isDuplicate = true;
-      duplicateOfId = existingCase.id;
-    }
-  }
-
-  // =========================
-  // ASSIGNEE VALIDATION
-  // =========================
-  let assignedToId: number | null = null;
-
-  if (data.assignedToId) {
-    const assignee = await this.prisma.user.findUnique({
-      where: { id: Number(data.assignedToId) },
-      select: { id: true },
-    });
-
-    if (!assignee) {
-      throw new NotFoundException(
-        `Assigned user ${data.assignedToId} not found`,
-      );
+  async create(data: any, user: any) {
+    if (!user.permissions?.includes('case.create')) {
+      throw new ForbiddenException('You cannot create cases');
     }
 
-    assignedToId = assignee.id;
-  }
-
-  // =========================
-  // AGENCY
-  // =========================
-  const agencyLink = await this.resolveAgency(data);
-
-  // =========================
-  // ASSIGNEES
-  // =========================
-  const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
-
-  const assigneeConnect =
-    resolvedAssignees?.length
-      ? { assignees: { connect: resolvedAssignees } }
-      : {};
-
-  // =========================
-  // TRANSACTION
-  // =========================
-  const result = await this.prisma.$transaction(async (tx) => {
-    // CREATE CASE
-    const caseItem = await tx.case.create({
-      data: {
-        ...assigneeConnect,
-
-        caseNumber: data.caseNumber ?? null,
-        submittedVia: data.submittedVia,
-
-        dateSubmitted: data.dateSubmitted
-          ? new Date(data.dateSubmitted)
-          : new Date(),
-
-        policeAgency: agencyLink.policeAgency ?? data.policeAgency,
-        agencyId: agencyLink.agencyId ?? null,
-        enteredBy: data.enteredBy,
-        caseReference :data.caseReference,
-
-        incidentDate: data.incidentDate
-          ? new Date(data.incidentDate)
-          : null,
-
-        location: data.location,
-        suspectName: data.suspectName,
-        age: data.age,
-
-
-         reminderNote:data.reminderNote,
-        reminderDate: data.reminderDate
-  ? new Date(data.reminderDate)
-  : null,
-
-        title: data.title,
-        description: data.description,
-        incidentSummary: data.incidentSummary,
-
-        statusId: defaultStatus.id,
-
-        mediaType: data.mediaType,
-
-        dateCompleted: data.dateCompleted
-          ? new Date(data.dateCompleted)
-          : null,
-
-        potential: data.potential,
-
-        isDuplicate,
-        duplicateOfId,
-
-        createdById: user.sub,
-        assignedToId,
-      },
-    });
-
-    // =========================
-    // CASE CREATED ACTIVITY
-    // =========================
-// Skip activity creation for Draft cases
-if (defaultStatus.key !== 'DRAFT') {
-  await tx.caseActivity.create({
-    data: {
-      caseId: caseItem.id,
-      userId: user.sub,
-      type: 'CASE_CREATED',
-      message: isDuplicate
-        ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
-        : `Case created by ${fullName}`,
-    },
-  });
-
-  await tx.caseActivity.create({
-    data: {
-      caseId: caseItem.id,
-      userId: user.sub,
-      type: 'STATUS_CHANGED',
-      message: `Status set to ${defaultStatus.key} by ${fullName}`,
-    },
-  });
-
-  if (resolvedAssignees?.length) {
-    const collaborators = await tx.user.findMany({
-      where: {
-        id: {
-          in: resolvedAssignees.map((a) => a.id),
-        },
-      },
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.sub },
       select: {
-        id: true,
         firstName: true,
         lastName: true,
       },
     });
 
-    await tx.caseActivity.createMany({
-      data: collaborators.map((collaborator) => ({
-        caseId: caseItem.id,
-        userId: user.sub,
-        type: 'COLLABORATOR_ADDED',
-        message: `Collaborator ${collaborator.firstName} ${collaborator.lastName} added by ${fullName}`,
-      })),
+    const fullName = dbUser
+      ? `${dbUser.firstName} ${dbUser.lastName}`
+      : 'Unknown User';
+
+    // =========================
+    // DEFAULT STATUS
+    // =========================
+    let defaultStatus: any = null;
+
+    if (data.statusId) {
+      defaultStatus = await this.prisma.status.findUnique({
+        where: { id: Number(data.statusId) },
+      });
+    }
+
+    if (!defaultStatus) {
+      defaultStatus = await this.prisma.status.findFirst({
+        where: { key: 'REPORT_REQUESTED' },
+      });
+    }
+
+    if (!defaultStatus) {
+      throw new BadRequestException('Default status not found');
+    }
+
+    // =========================
+    // DUPLICATE CHECK
+    // =========================
+    let isDuplicate = false;
+    let duplicateOfId: number | null = null;
+
+    if (data.suspectName) {
+      const existingCase = await this.prisma.case.findFirst({
+        where: {
+          suspectName: {
+            equals: data.suspectName.trim(),
+            mode: 'insensitive',
+          },
+          isDuplicate: false,
+        },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (existingCase) {
+        isDuplicate = true;
+        duplicateOfId = existingCase.id;
+      }
+    }
+
+    // =========================
+    // ASSIGNEE VALIDATION
+    // =========================
+    let assignedToId: number | null = null;
+
+    if (data.assignedToId) {
+      const assignee = await this.prisma.user.findUnique({
+        where: { id: Number(data.assignedToId) },
+        select: { id: true },
+      });
+
+      if (!assignee) {
+        throw new NotFoundException(
+          `Assigned user ${data.assignedToId} not found`,
+        );
+      }
+
+      assignedToId = assignee.id;
+    }
+
+    // =========================
+    // AGENCY
+    // =========================
+    const agencyLink = await this.resolveAgency(data);
+
+    // =========================
+    // ASSIGNEES
+    // =========================
+    const resolvedAssignees = await this.resolveAssignees(data.assigneeIds);
+
+    const assigneeConnect = resolvedAssignees?.length
+      ? { assignees: { connect: resolvedAssignees } }
+      : {};
+
+    // =========================
+    // TRANSACTION
+    // =========================
+    const result = await this.prisma.$transaction(async (tx) => {
+      // CREATE CASE
+      const caseItem = await tx.case.create({
+        data: {
+          ...assigneeConnect,
+
+          caseNumber: data.caseNumber ?? null,
+          submittedVia: data.submittedVia,
+
+          dateSubmitted: data.dateSubmitted
+            ? new Date(data.dateSubmitted)
+            : new Date(),
+
+          policeAgency: agencyLink.policeAgency ?? data.policeAgency,
+          agencyId: agencyLink.agencyId ?? null,
+          enteredBy: data.enteredBy,
+          caseReference: data.caseReference,
+
+          incidentDate: data.incidentDate ? new Date(data.incidentDate) : null,
+
+          location: data.location,
+          suspectName: data.suspectName,
+          age: data.age,
+
+          reminderNote: data.reminderNote,
+          reminderDate: data.reminderDate ? new Date(data.reminderDate) : null,
+
+          title: data.title,
+          description: data.description,
+          incidentSummary: data.incidentSummary,
+
+          statusId: defaultStatus.id,
+
+          mediaType: data.mediaType,
+
+          dateCompleted: data.dateCompleted
+            ? new Date(data.dateCompleted)
+            : null,
+
+          potential: data.potential,
+
+          isDuplicate,
+          duplicateOfId,
+
+          createdById: user.sub,
+          assignedToId,
+        },
+      });
+
+      // =========================
+      // CASE CREATED ACTIVITY
+      // =========================
+      // Skip activity creation for Draft cases
+      if (defaultStatus.key !== 'DRAFT') {
+        await tx.caseActivity.create({
+          data: {
+            caseId: caseItem.id,
+            userId: user.sub,
+            type: 'CASE_CREATED',
+            message: isDuplicate
+              ? `Duplicate case created by ${fullName}. Linked to Case #${duplicateOfId}`
+              : `Case created by ${fullName}`,
+          },
+        });
+
+        await tx.caseActivity.create({
+          data: {
+            caseId: caseItem.id,
+            userId: user.sub,
+            type: 'STATUS_CHANGED',
+            message: `Status set to ${defaultStatus.key} by ${fullName}`,
+          },
+        });
+
+        if (resolvedAssignees?.length) {
+          const collaborators = await tx.user.findMany({
+            where: {
+              id: {
+                in: resolvedAssignees.map((a) => a.id),
+              },
+            },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          });
+
+          await tx.caseActivity.createMany({
+            data: collaborators.map((collaborator) => ({
+              caseId: caseItem.id,
+              userId: user.sub,
+              type: 'COLLABORATOR_ADDED',
+              message: `Collaborator ${collaborator.firstName} ${collaborator.lastName} added by ${fullName}`,
+            })),
+          });
+        }
+
+        if (data.notes?.trim()) {
+          await tx.caseActivity.create({
+            data: {
+              caseId: caseItem.id,
+              userId: user.sub,
+              type: 'NOTE_ADDED',
+              message: data.notes.trim(),
+            },
+          });
+        }
+      }
+      // =========================
+      // NOTE ACTIVITY
+      // =========================
+
+      // =========================
+      // 📎 CASE MEDIA (PDF UPLOAD)
+      // =========================
+      if (data.pdfUrl) {
+        await tx.caseMedia.create({
+          data: {
+            caseId: caseItem.id,
+            uploadedById: user.sub,
+            fileName: data.pdfName ?? 'document.pdf',
+            fileUrl: data.pdfUrl,
+            mediaType: 'pdf',
+            isReport: data.isReport ?? false,
+          },
+        });
+      }
+
+      if (data.caseFolderUrl) {
+        await tx.caseMedia.create({
+          data: {
+            caseId: caseItem.id,
+            uploadedById: user.sub,
+            fileName: data.caseFolderName ?? 'Case Folder',
+            fileUrl: data.caseFolderUrl,
+            mediaType: 'link',
+            isReport: false,
+          },
+        });
+      }
+      return caseItem;
     });
+
+    return {
+      success: true,
+      message: isDuplicate
+        ? `Case created — possible duplicate of Case #${duplicateOfId}`
+        : 'Case created successfully',
+      data: result,
+    };
   }
 
-   if (data.notes?.trim()) {
-      await tx.caseActivity.create({
-        data: {
-          caseId: caseItem.id,
-          userId: user.sub,
-          type: 'NOTE_ADDED',
-          message: data.notes.trim(),
-        },
-      });
-    }
-}
-    // =========================
-    // NOTE ACTIVITY
-    // =========================
-   
+  // =========================
+  // ACTIVITY FEED (notifications) — directional
+  // - Managers are notified of RESEARCHER actions (e.g. case created, media
+  //   requested) across all cases.
+  // - Researchers are notified of MANAGER actions (e.g. media approved, approved,
+  //   voided) on cases they created or are assigned to.
+  // - Nobody is notified of their own actions. Admins get nothing.
+  // Newest first.
+  // =========================
+  async getActivityFeed(user: any, limit = 30) {
+    let where: any;
 
-    // =========================
-    // 📎 CASE MEDIA (PDF UPLOAD)
-    // =========================
-    if (data.pdfUrl) {
-      await tx.caseMedia.create({
-        data: {
-          caseId: caseItem.id,
-          uploadedById: user.sub,
-          fileName: data.pdfName ?? 'document.pdf',
-          fileUrl: data.pdfUrl,
-          mediaType: 'pdf',
-           isReport: data.isReport ?? false
-        },
-      });
-    }
-
-    if (data.caseFolderUrl) {
-  await tx.caseMedia.create({
-    data: {
-      caseId: caseItem.id,
-      uploadedById: user.sub,
-      fileName: data.caseFolderName ?? 'Case Folder',
-      fileUrl: data.caseFolderUrl,
-      mediaType: 'link',
-      isReport: false,
-    },
-  });
-}
-    return caseItem;
-  });
-
-  return {
-    success: true,
-    message: isDuplicate
-      ? `Case created — possible duplicate of Case #${duplicateOfId}`
-      : 'Case created successfully',
-    data: result,
-  };
-}
-
-// =========================
-// ACTIVITY FEED (notifications) — directional
-// - Managers are notified of RESEARCHER actions (e.g. case created, media
-//   requested) across all cases.
-// - Researchers are notified of MANAGER actions (e.g. media approved, approved,
-//   voided) on cases they created or are assigned to.
-// - Nobody is notified of their own actions. Admins get nothing.
-// Newest first.
-// =========================
-async getActivityFeed(user: any, limit = 30) {
-  let where: any;
-
-  if (user.role === 'MANAGER' || user.role === 'Owner' || user.role === 'OWNER') {
-    where = {
-      userId: { not: user.sub },
-      user: { role: { name: 'RESEARCHER' } },
-    };
-  } else if (user.role === 'RESEARCHER') {
-    where = {
-      userId: { not: user.sub },
-      user: {
-        role: {
-          name: {
-            in: ['MANAGER', 'OWNER', 'Owner'],
+    if (
+      user.role === 'MANAGER' ||
+      user.role === 'Owner' ||
+      user.role === 'OWNER'
+    ) {
+      where = {
+        userId: { not: user.sub },
+        user: { role: { name: 'RESEARCHER' } },
+      };
+    } else if (user.role === 'RESEARCHER') {
+      where = {
+        userId: { not: user.sub },
+        user: {
+          role: {
+            name: {
+              in: ['MANAGER', 'OWNER', 'Owner'],
+            },
           },
-        },},
-      case: {
+        },
+        case: {
+          OR: [
+            { createdById: user.sub },
+            { assignees: { some: { id: user.sub } } },
+          ],
+        },
+      };
+    } else {
+      // Admins don't work cases — no case notifications.
+      return { success: true, data: [] };
+    }
+
+    const activities = await this.prisma.caseActivity.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        user: { select: { firstName: true, lastName: true } },
+        case: { select: { id: true, caseNumber: true, suspectName: true } },
+      },
+    });
+
+    return {
+      success: true,
+      data: activities.map((a) => ({
+        id: a.id,
+        type: a.type,
+        message: a.message,
+        createdAt: a.createdAt,
+        author: a.user
+          ? `${a.user.firstName} ${a.user.lastName}`.trim()
+          : 'System',
+        caseId: a.caseId,
+        caseNumber: a.case?.caseNumber,
+        suspectName: a.case?.suspectName,
+      })),
+    };
+  }
+
+  async findAll(user: any, query: any = {}) {
+    const where: any = {};
+    const and: any[] = [];
+
+    // =========================
+    // MINE FILTER
+    // =========================
+    if (query.mine === 'true' || query.mine === true) {
+      and.push({
         OR: [
           { createdById: user.sub },
           { assignees: { some: { id: user.sub } } },
         ],
-      },
-    };
-  } else {
-    // Admins don't work cases — no case notifications.
-    return { success: true, data: [] };
-  }
-
-  const activities = await this.prisma.caseActivity.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: limit,
-    include: {
-      user: { select: { firstName: true, lastName: true } },
-      case: { select: { id: true, caseNumber: true, suspectName: true } },
-    },
-  });
-
-  return {
-    success: true,
-    data: activities.map((a) => ({
-      id: a.id,
-      type: a.type,
-      message: a.message,
-      createdAt: a.createdAt,
-      author: a.user ? `${a.user.firstName} ${a.user.lastName}`.trim() : 'System',
-      caseId: a.caseId,
-      caseNumber: a.case?.caseNumber,
-      suspectName: a.case?.suspectName,
-    })),
-  };
-}
-
-async findAll(user: any, query: any = {}) {
-  const where: any = {};
-  const and: any[] = [];
-
-  // =========================
-  // MINE FILTER
-  // =========================
-  if (query.mine === 'true' || query.mine === true) {
-    and.push({
-      OR: [
-        { createdById: user.sub },
-        { assignees: { some: { id: user.sub } } },
-      ],
-    });
-  }
-
-  // =========================
-  // STATUS FILTER
-  // =========================
-  if (query.status) {
-    const status = await this.prisma.status.findFirst({
-      where: {
-        key: query.status,
-      },
-    });
-
-    if (status) {
-      where.statusId = status.id;
+      });
     }
-  }
 
-  // =========================
-  // DUPLICATE FILTER
-  // =========================
-  if (
-    query.duplicatesOnly === 'true' ||
-    query.duplicatesOnly === true
-  ) {
-    where.isDuplicate = true;
-  }
-
-  // =========================
-  // SEARCH FILTER
-  // =========================
-  if (query.q && String(query.q).trim()) {
-    const q = String(query.q).trim();
-
-    and.push({
-      OR: [
-        {
-          caseNumber: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          suspectName: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          title: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          policeAgency: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          location: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-      ],
-    });
-  }
-
-  if (and.length) {
-    where.AND = and;
-  }
-
-  const cases = await this.prisma.case.findMany({
-    where,
-
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      assignedTo: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      writer: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      editor: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      editorStatus: true,
-
-      // Uploaded media
-      activities: {
+    // =========================
+    // STATUS FILTER
+    // =========================
+    if (query.status) {
+      const status = await this.prisma.status.findFirst({
         where: {
-          type: 'MEDIA',
+          key: query.status,
         },
-        select: {
-          id: true,
+      });
+
+      if (status) {
+        where.statusId = status.id;
+      }
+    }
+
+    // =========================
+    // DUPLICATE FILTER
+    // =========================
+    if (query.duplicatesOnly === 'true' || query.duplicatesOnly === true) {
+      where.isDuplicate = true;
+    }
+
+    // =========================
+    // SEARCH FILTER
+    // =========================
+    if (query.q && String(query.q).trim()) {
+      const q = String(query.q).trim();
+
+      and.push({
+        OR: [
+          {
+            caseNumber: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+          {
+            suspectName: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+          {
+            title: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+          {
+            policeAgency: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+          {
+            location: {
+              contains: q,
+              mode: 'insensitive',
+            },
+          },
+        ],
+      });
+    }
+
+    if (and.length) {
+      where.AND = and;
+    }
+
+    const cases = await this.prisma.case.findMany({
+      where,
+
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
         },
+
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        writer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        editor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        editorStatus: true,
+
+        // Uploaded media
+        activities: {
+          where: {
+            type: 'MEDIA',
+          },
+          select: {
+            id: true,
+          },
+        },
+
+        assignees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        agency: {
+          select: {
+            id: true,
+            name: true,
+            allowed: true,
+          },
+        },
+
+        duplicateOf: {
+          select: {
+            id: true,
+            caseNumber: true,
+            suspectName: true,
+          },
+        },
+
+        duplicates: {
+          select: {
+            id: true,
+            caseNumber: true,
+            suspectName: true,
+            createdAt: true,
+          },
+        },
+
+        status: true,
+
+        media: true,
       },
 
-      assignees: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
+      orderBy: {
+        createdAt: 'desc',
       },
+    });
 
-      agency: {
-        select: {
-          id: true,
-          name: true,
-          allowed: true,
-        },
-      },
-
-      duplicateOf: {
-        select: {
-          id: true,
-          caseNumber: true,
-          suspectName: true,
-        },
-      },
-
-      duplicates: {
-        select: {
-          id: true,
-          caseNumber: true,
-          suspectName: true,
-          createdAt: true,
-        },
-      },
-
-      status: true,
-
-      media: true,
-    },
-
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
-  return {
-    success: true,
-    message: 'Cases fetched successfully',
-    data: cases,
-  };
-}
+    return {
+      success: true,
+      message: 'Cases fetched successfully',
+      data: cases,
+    };
+  }
   // =========================
   // GET ONE CASE (WITH TIMELINE)
   // =========================
 
   // =========================
-// GET ONE CASE (WITH TIMELINE)
-// =========================
-async findOne(id: number, user: any) {
-  const caseItem = await this.prisma.case.findUnique({
-    where: { id },
+  // GET ONE CASE (WITH TIMELINE)
+  // =========================
+  async findOne(id: number, user: any) {
+    const caseItem = await this.prisma.case.findUnique({
+      where: { id },
 
-    include: {
-      createdBy: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      assignedTo: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      writer: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      editor: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      editorStatus: true,
-
-      assignees: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-
-      agency: {
-        select: {
-          id: true,
-          name: true,
-          allowed: true,
-        },
-      },
-
-      // =========================
-      // STATUS
-      // =========================
-      status: true,
-
-      // =========================
-      // MEDIA
-      // =========================
-      media: true,
-
-      // =========================
-      // DUPLICATE RELATION
-      // =========================
-      duplicateOf: {
-        select: {
-          id: true,
-          caseNumber: true,
-          suspectName: true,
-          status: true,
-          createdAt: true,
-        },
-      },
-
-      duplicates: {
-        select: {
-          id: true,
-          caseNumber: true,
-          suspectName: true,
-          status: true,
-          createdAt: true,
-
-          createdBy: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-            },
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
 
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
-
-      _count: {
-        select: {
-          duplicates: true,
-        },
-      },
-
-      activities: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-            },
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
 
-        orderBy: {
-          createdAt: 'desc',
+        writer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        editor: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        editorStatus: true,
+
+        assignees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
+        agency: {
+          select: {
+            id: true,
+            name: true,
+            allowed: true,
+          },
+        },
+
+        // =========================
+        // STATUS
+        // =========================
+        status: true,
+
+        // =========================
+        // MEDIA
+        // =========================
+        media: true,
+
+        // =========================
+        // DUPLICATE RELATION
+        // =========================
+        duplicateOf: {
+          select: {
+            id: true,
+            caseNumber: true,
+            suspectName: true,
+            status: true,
+            createdAt: true,
+          },
+        },
+
+        duplicates: {
+          select: {
+            id: true,
+            caseNumber: true,
+            suspectName: true,
+            status: true,
+            createdAt: true,
+
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+
+        _count: {
+          select: {
+            duplicates: true,
+          },
+        },
+
+        activities: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+
+          orderBy: {
+            createdAt: 'desc',
+          },
         },
       },
-    },
-  });
+    });
 
-  if (!caseItem) {
-    throw new NotFoundException('Case not found');
-  }
-
-  // Other cases that share this suspect's name. Computed here (guarded so it can
-  // never fail the request) so the frontend doesn't need a separate search call.
-  let possibleDuplicates: any[] = [];
-  try {
-    const name = (caseItem.suspectName || '').trim();
-    if (name) {
-      possibleDuplicates = await this.prisma.case.findMany({
-        where: {
-          id: { not: caseItem.id },
-          suspectName: { equals: name, mode: 'insensitive' },
-        },
-        select: {
-          id: true,
-          caseNumber: true,
-          suspectName: true,
-          status: true,
-          createdBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 25,
-      });
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
     }
-  } catch {
-    possibleDuplicates = [];
+
+    // Other cases that share this suspect's name. Computed here (guarded so it can
+    // never fail the request) so the frontend doesn't need a separate search call.
+    let possibleDuplicates: any[] = [];
+
+try {
+  const name = (caseItem.suspectName || '').trim();
+
+  if (name) {
+    possibleDuplicates = await this.prisma.case.findMany({
+      where: {
+        id: { not: caseItem.id },
+
+        suspectName: {
+          equals: name,
+          mode: 'insensitive',
+        },
+
+        incidentDate: caseItem.incidentDate
+          ? caseItem.incidentDate
+          : undefined,
+      },
+
+      select: {
+        id: true,
+        caseNumber: true,
+        suspectName: true,
+        incidentDate: true,
+        status: true,
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+
+      orderBy: {
+        createdAt: 'desc',
+      },
+
+      take: 25,
+    });
   }
 
-  return {
-    success: true,
-    message: 'Case fetched successfully',
-    data: {
-      ...caseItem,
-      possibleDuplicates,
-    },
-  };
+} catch {
+  possibleDuplicates = [];
 }
+
+    return {
+      success: true,
+      message: 'Case fetched successfully',
+      data: {
+        ...caseItem,
+        possibleDuplicates,
+      },
+    };
+  }
 
   // =========================
   // UPDATE CASE (WITH FULL ACTIVITY LOGGING)
   // =========================
 
   async update(id: number, dto: any, user: any) {
-  const caseItem = await this.prisma.case.findUnique({
-    where: { id },
-    include: {
-      assignees: { select: { id: true } },
-      status: true,
-    },
-  });
-
-  if (!caseItem) {
-    throw new NotFoundException('Case not found');
-  }
-
-  if (!this.canEditCase(caseItem, user)) {
-    throw new ForbiddenException('You cannot update this case');
-  }
-
-  // =========================
-  // WRITER VALIDATION (roleId = 5)
-  // =========================
-  if (dto.writerId) {
-    const writer = await this.prisma.user.findFirst({
-      where: {
-        id: Number(dto.writerId),
-        roleId: 5,
+    const caseItem = await this.prisma.case.findUnique({
+      where: { id },
+      include: {
+        assignees: { select: { id: true } },
+        status: true,
       },
     });
 
-    if (!writer) {
-      throw new BadRequestException(
-        'Selected user is not a valid Writer.'
-      );
-    }
-  }
-
-  // =========================
-  // EDITOR VALIDATION (roleId = 6)
-  // =========================
-  if (dto.editorId) {
-    const editor = await this.prisma.user.findFirst({
-      where: {
-        id: Number(dto.editorId),
-        roleId: 6,
-      },
-    });
-
-    if (!editor) {
-      throw new BadRequestException(
-        'Selected user is not a valid Editor.'
-      );
-    }
-  }
-
-  const dbUser = await this.prisma.user.findUnique({
-    where: { id: user.sub },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  const fullName = dbUser
-    ? `${dbUser.firstName} ${dbUser.lastName}`
-    : 'Unknown User';
-
-  const oldStatusKey = caseItem.status?.key ?? null;
-  const oldAssignedTo = caseItem.assignedToId;
-  const oldSuspectName = caseItem.suspectName;
-
-  // =========================
-  // STATUS UPDATE
-  // =========================
-  let statusData: any = {};
-
-  if (dto.statusId && dto.statusId !== caseItem.statusId) {
-    const newStatus = await this.prisma.status.findUnique({
-      where: { id: Number(dto.statusId) },
-    });
-
-    if (!newStatus) {
-      throw new NotFoundException('Invalid statusId');
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
     }
 
-    const allowedKeys = STATUS_TRANSITIONS[oldStatusKey] ?? [];
-
-    if (oldStatusKey && !allowedKeys.includes(newStatus.key)) {
-      throw new BadRequestException(
-        `Invalid status transition: ${oldStatusKey} → ${newStatus.key}`,
-      );
+    if (!this.canEditCase(caseItem, user)) {
+      throw new ForbiddenException('You cannot update this case');
     }
 
-    statusData.statusId = newStatus.id;
-
-    if (newStatus.key === 'COMPLETED') {
-      statusData.dateCompleted = new Date();
-    } else if (oldStatusKey === 'COMPLETED') {
-      statusData.dateCompleted = null;
-    }
-  }
-
-  const { note: incomingNote, assigneeIds, ...caseData } = dto;
-
-  // =========================
-  // ASSIGNEES
-  // =========================
-  let assigneeData: any = {};
-  const resolvedAssignees = await this.resolveAssignees(assigneeIds);
-
-  // =========================
-const oldAssigneeIds = caseItem.assignees.map((a) => a.id);
-
-const newAssigneeIds =
-  resolvedAssignees !== null
-    ? resolvedAssignees.map((a) => a.id)
-    : oldAssigneeIds;
-
-const addedAssigneeIds = newAssigneeIds.filter(
-  (id) => !oldAssigneeIds.includes(id),
-);
-
-const removedAssigneeIds = oldAssigneeIds.filter(
-  (id) => !newAssigneeIds.includes(id),
-);
-
-  if (resolvedAssignees !== null) {
-    assigneeData = {
-      assignees: {
-        set: resolvedAssignees,
-      },
-    };
-  }
-
-  // =========================
-  // AGENCY
-  // =========================
-  let agencyData: any = {};
-
-  if (dto.policeAgency !== undefined || dto.agencyId !== undefined) {
-    agencyData = await this.resolveAgency(dto);
-  }
-
-  // =========================
-  // DUPLICATE CHECK
-  // =========================
-  let duplicateData: any = {};
-
-  if (
-    dto.suspectName &&
-    dto.suspectName.trim() !== oldSuspectName
-  ) {
-    const existingCase = await this.prisma.case.findFirst({
-      where: {
-        suspectName: {
-          equals: dto.suspectName.trim(),
-          mode: 'insensitive',
+    // =========================
+    // WRITER VALIDATION (roleId = 5)
+    // =========================
+    if (dto.writerId) {
+      const writer = await this.prisma.user.findFirst({
+        where: {
+          id: Number(dto.writerId),
+          roleId: 5,
         },
-        id: { not: id },
-        isDuplicate: false,
+      });
+
+      if (!writer) {
+        throw new BadRequestException('Selected user is not a valid Writer.');
+      }
+    }
+
+    // =========================
+    // EDITOR VALIDATION (roleId = 6)
+    // =========================
+    if (dto.editorId) {
+      const editor = await this.prisma.user.findFirst({
+        where: {
+          id: Number(dto.editorId),
+          roleId: 6,
+        },
+      });
+
+      if (!editor) {
+        throw new BadRequestException('Selected user is not a valid Editor.');
+      }
+    }
+
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: {
+        firstName: true,
+        lastName: true,
       },
     });
 
-    duplicateData = existingCase
-      ? {
-          isDuplicate: true,
-          duplicateOfId: existingCase.id,
-        }
-      : {
+    const fullName = dbUser
+      ? `${dbUser.firstName} ${dbUser.lastName}`
+      : 'Unknown User';
+
+    const oldStatusKey = caseItem.status?.key ?? null;
+    const oldAssignedTo = caseItem.assignedToId;
+    const oldSuspectName = caseItem.suspectName;
+
+    // =========================
+    // STATUS UPDATE
+    // =========================
+    let statusData: any = {};
+
+    if (dto.statusId && dto.statusId !== caseItem.statusId) {
+      const newStatus = await this.prisma.status.findUnique({
+        where: { id: Number(dto.statusId) },
+      });
+
+      if (!newStatus) {
+        throw new NotFoundException('Invalid statusId');
+      }
+
+      const allowedKeys = STATUS_TRANSITIONS[oldStatusKey] ?? [];
+
+      if (oldStatusKey && !allowedKeys.includes(newStatus.key)) {
+        throw new BadRequestException(
+          `Invalid status transition: ${oldStatusKey} → ${newStatus.key}`,
+        );
+      }
+
+      statusData.statusId = newStatus.id;
+
+      if (newStatus.key === 'COMPLETED') {
+        statusData.dateCompleted = new Date();
+      } else if (oldStatusKey === 'COMPLETED') {
+        statusData.dateCompleted = null;
+      }
+    }
+
+    const { note: incomingNote, assigneeIds, ...caseData } = dto;
+
+    // =========================
+    // ASSIGNEES
+    // =========================
+    let assigneeData: any = {};
+    const resolvedAssignees = await this.resolveAssignees(assigneeIds);
+
+    // =========================
+    const oldAssigneeIds = caseItem.assignees.map((a) => a.id);
+
+    const newAssigneeIds =
+      resolvedAssignees !== null
+        ? resolvedAssignees.map((a) => a.id)
+        : oldAssigneeIds;
+
+    const addedAssigneeIds = newAssigneeIds.filter(
+      (id) => !oldAssigneeIds.includes(id),
+    );
+
+    const removedAssigneeIds = oldAssigneeIds.filter(
+      (id) => !newAssigneeIds.includes(id),
+    );
+
+    if (resolvedAssignees !== null) {
+      assigneeData = {
+        assignees: {
+          set: resolvedAssignees,
+        },
+      };
+    }
+
+    // =========================
+    // AGENCY
+    // =========================
+    let agencyData: any = {};
+
+    if (dto.policeAgency !== undefined || dto.agencyId !== undefined) {
+      agencyData = await this.resolveAgency(dto);
+    }
+
+    // =========================
+    // DUPLICATE CHECK
+    // =========================
+    let duplicateData: any = {};
+
+    if (dto.suspectName && dto.suspectName.trim() !== oldSuspectName) {
+      const existingCase = await this.prisma.case.findFirst({
+        where: {
+          suspectName: {
+            equals: dto.suspectName.trim(),
+            mode: 'insensitive',
+          },
+          id: { not: id },
           isDuplicate: false,
-          duplicateOfId: null,
-        };
-  }
+        },
+      });
 
-   if (caseData.reminderDate) {
-  caseData.reminderDate = new Date(
-    `${caseData.reminderDate}T00:00:00.000Z`,
-  );
-}
+      duplicateData = existingCase
+        ? {
+            isDuplicate: true,
+            duplicateOfId: existingCase.id,
+          }
+        : {
+            isDuplicate: false,
+            duplicateOfId: null,
+          };
+    }
 
-  // =========================
-  // UPDATE CASE
-  // =========================
-  const updated = await this.prisma.case.update({
-    where: { id },
+    if (caseData.reminderDate) {
+      caseData.reminderDate = new Date(
+        `${caseData.reminderDate}T00:00:00.000Z`,
+      );
+    }
 
-    data: {
-      ...caseData,
-      ...statusData,
-      ...duplicateData,
-      ...agencyData,
-      ...assigneeData,
+    // =========================
+    // UPDATE CASE
+    // =========================
+    const updated = await this.prisma.case.update({
+      where: { id },
 
-      ...(dto.assignedToId !== undefined && {
-        assignedToId: dto.assignedToId
-          ? Number(dto.assignedToId)
-          : null,
-      }),
+      data: {
+        ...caseData,
+        ...statusData,
+        ...duplicateData,
+        ...agencyData,
+        ...assigneeData,
 
-      ...(dto.writerId !== undefined && {
-        writerId: dto.writerId
-          ? Number(dto.writerId)
-          : null,
-      }),
+        ...(dto.assignedToId !== undefined && {
+          assignedToId: dto.assignedToId ? Number(dto.assignedToId) : null,
+        }),
 
-      ...(dto.editorId !== undefined && {
-        editorId: dto.editorId
-          ? Number(dto.editorId)
-          : null,
-      }),
+        ...(dto.writerId !== undefined && {
+          writerId: dto.writerId ? Number(dto.writerId) : null,
+        }),
 
-      ...(dto.editorStatusId !== undefined && {
-        editorStatusId: dto.editorStatusId
-          ? Number(dto.editorStatusId)
-          : null,
-      }),
+        ...(dto.editorId !== undefined && {
+          editorId: dto.editorId ? Number(dto.editorId) : null,
+        }),
+
+        ...(dto.editorStatusId !== undefined && {
+          editorStatusId: dto.editorStatusId
+            ? Number(dto.editorStatusId)
+            : null,
+        }),
 
         ...(dto.scriptStatusId !== undefined && {
-        scriptStatusId: dto.scriptStatusId
-          ? Number(dto.scriptStatusId)
-          : null,
-      }),
-    },
+          scriptStatusId: dto.scriptStatusId
+            ? Number(dto.scriptStatusId)
+            : null,
+        }),
+      },
 
-    include: {
-      status: true,
-      writer: { select: { id: true, firstName: true, lastName: true } },
-      editor: { select: { id: true, firstName: true, lastName: true } },
-      editorStatus: true,
-      createdBy: { select: { id: true, firstName: true, lastName: true } },
-      assignedTo: { select: { id: true, firstName: true, lastName: true } },
-      assignees: { select: { id: true, firstName: true, lastName: true } },
-      agency: true,
-      media: true,
-    },
-  });
-
-  // =========================
-  // LOGS
-  // =========================
- if (statusData.statusId) {
-  const newStatusKey = updated.status?.key ?? null;
-
-  // If this is the first time the draft is being submitted,
-  // create the CASE_CREATED activity.
-  if (oldStatusKey === 'DRAFT' && newStatusKey !== 'DRAFT') {
-    await this.prisma.caseActivity.create({
-      data: {
-        caseId: id,
-        userId: user.sub,
-        type: 'CASE_CREATED',
-        message: caseItem.isDuplicate
-          ? `Duplicate case created by ${fullName}. Linked to Case #${caseItem.duplicateOfId}`
-          : `Case created by ${fullName}`,
+      include: {
+        status: true,
+        writer: { select: { id: true, firstName: true, lastName: true } },
+        editor: { select: { id: true, firstName: true, lastName: true } },
+        editorStatus: true,
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+        assignedTo: { select: { id: true, firstName: true, lastName: true } },
+        assignees: { select: { id: true, firstName: true, lastName: true } },
+        agency: true,
+        media: true,
       },
     });
+
+    // =========================
+    // LOGS
+    // =========================
+    if (statusData.statusId) {
+      const newStatusKey = updated.status?.key ?? null;
+
+      // If this is the first time the draft is being submitted,
+      // create the CASE_CREATED activity.
+      if (oldStatusKey === 'DRAFT' && newStatusKey !== 'DRAFT') {
+        await this.prisma.caseActivity.create({
+          data: {
+            caseId: id,
+            userId: user.sub,
+            type: 'CASE_CREATED',
+            message: caseItem.isDuplicate
+              ? `Duplicate case created by ${fullName}. Linked to Case #${caseItem.duplicateOfId}`
+              : `Case created by ${fullName}`,
+          },
+        });
+      }
+
+      const statusMessage =
+        oldStatusKey === 'DRAFT'
+          ? `Status changed to ${newStatusKey} by ${fullName}`
+          : `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`;
+
+      await this.prisma.caseActivity.create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'STATUS_CHANGED',
+          message: statusMessage,
+        },
+      });
+    }
+
+    if (dto.assignedToId && dto.assignedToId !== oldAssignedTo) {
+      await this.prisma.caseActivity.create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_ASSIGNED',
+          message: `Case assigned to user ID ${dto.assignedToId} by ${fullName}`,
+        },
+      });
+    }
+
+    if (incomingNote?.trim()) {
+      await this.prisma.caseActivity.create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'NOTE_ADDED',
+          message: incomingNote,
+        },
+      });
+    }
+
+    if (dto.suspectName && dto.suspectName.trim() !== oldSuspectName) {
+      await this.prisma.caseActivity.create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_UPDATED',
+          message: `Suspect changed from "${oldSuspectName}" to "${dto.suspectName}" by ${fullName}`,
+        },
+      });
+    }
+
+    if (addedAssigneeIds.length) {
+      const addedUsers = await this.prisma.user.findMany({
+        where: {
+          id: {
+            in: addedAssigneeIds,
+          },
+        },
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      await this.prisma.caseActivity.createMany({
+        data: addedUsers.map((u) => ({
+          caseId: id,
+          userId: user.sub,
+          type: 'COLLABORATOR_ADDED',
+          message: `Collaborator ${u.firstName} ${u.lastName} added by ${fullName}`,
+        })),
+      });
+    }
+
+    if (removedAssigneeIds.length) {
+      const removedUsers = await this.prisma.user.findMany({
+        where: {
+          id: {
+            in: removedAssigneeIds,
+          },
+        },
+        select: {
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      await this.prisma.caseActivity.createMany({
+        data: removedUsers.map((u) => ({
+          caseId: id,
+          userId: user.sub,
+          type: 'COLLABORATOR_REMOVED',
+          message: `Collaborator ${u.firstName} ${u.lastName} removed by ${fullName}`,
+        })),
+      });
+    }
+
+    return {
+      success: true,
+      message: 'Case updated successfully',
+      data: updated,
+    };
   }
-
- const statusMessage =
-  oldStatusKey === 'DRAFT'
-    ? `Status changed to ${newStatusKey} by ${fullName}`
-    : `Status changed from ${oldStatusKey} to ${newStatusKey} by ${fullName}`;
-
-await this.prisma.caseActivity.create({
-  data: {
-    caseId: id,
-    userId: user.sub,
-    type: 'STATUS_CHANGED',
-    message: statusMessage,
-  },
-});
-}
-
-  if (dto.assignedToId && dto.assignedToId !== oldAssignedTo) {
-    await this.prisma.caseActivity.create({
-      data: {
-        caseId: id,
-        userId: user.sub,
-        type: 'CASE_ASSIGNED',
-        message: `Case assigned to user ID ${dto.assignedToId} by ${fullName}`,
-      },
-    });
-  }
-
-  if (incomingNote?.trim()) {
-    await this.prisma.caseActivity.create({
-      data: {
-        caseId: id,
-        userId: user.sub,
-        type: 'NOTE_ADDED',
-        message: incomingNote,
-      },
-    });
-  }
-
-  if (
-    dto.suspectName &&
-    dto.suspectName.trim() !== oldSuspectName
-  ) {
-    await this.prisma.caseActivity.create({
-      data: {
-        caseId: id,
-        userId: user.sub,
-        type: 'CASE_UPDATED',
-        message: `Suspect changed from "${oldSuspectName}" to "${dto.suspectName}" by ${fullName}`,
-
-      },
-    });
-  }
-
-  if (addedAssigneeIds.length) {
-  const addedUsers = await this.prisma.user.findMany({
-    where: {
-      id: {
-        in: addedAssigneeIds,
-      },
-    },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  await this.prisma.caseActivity.createMany({
-    data: addedUsers.map((u) => ({
-      caseId: id,
-      userId: user.sub,
-      type: 'COLLABORATOR_ADDED',
-      message: `Collaborator ${u.firstName} ${u.lastName} added by ${fullName}`,
-    })),
-  });
-}
-
-if (removedAssigneeIds.length) {
-  const removedUsers = await this.prisma.user.findMany({
-    where: {
-      id: {
-        in: removedAssigneeIds,
-      },
-    },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  await this.prisma.caseActivity.createMany({
-    data: removedUsers.map((u) => ({
-      caseId: id,
-      userId: user.sub,
-      type: 'COLLABORATOR_REMOVED',
-      message: `Collaborator ${u.firstName} ${u.lastName} removed by ${fullName}`,
-    })),
-  });
-}
-
-  return {
-    success: true,
-    message: 'Case updated successfully',
-    data: updated,
-  };
-}
 
   // =========================
   // DELETE CASE
@@ -1421,45 +1421,44 @@ if (removedAssigneeIds.length) {
     };
   }
 
-
   async addNote(caseId: number, note: string, user: any) {
-  const caseItem = await this.prisma.case.findUnique({
-    where: { id: caseId },
-  });
+    const caseItem = await this.prisma.case.findUnique({
+      where: { id: caseId },
+    });
 
-  if (!caseItem) {
-    throw new NotFoundException('Case not found');
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
+    }
+
+    // Get user name
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: {
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    const fullName = dbUser
+      ? `${dbUser.firstName} ${dbUser.lastName}`
+      : 'Unknown User';
+
+    // Create activity log
+    const activity = await this.prisma.caseActivity.create({
+      data: {
+        caseId,
+        userId: user.sub,
+        type: 'NOTE_ADDED',
+        message: `${fullName}: ${note}`,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Note added successfully',
+      data: activity,
+    };
   }
-
-  // Get user name
-  const dbUser = await this.prisma.user.findUnique({
-    where: { id: user.sub },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  const fullName = dbUser
-    ? `${dbUser.firstName} ${dbUser.lastName}`
-    : 'Unknown User';
-
-  // Create activity log
-  const activity = await this.prisma.caseActivity.create({
-    data: {
-      caseId,
-      userId: user.sub,
-      type: 'NOTE_ADDED',
-      message: `${fullName}: ${note}`,
-    },
-  });
-
-  return {
-    success: true,
-    message: 'Note added successfully',
-    data: activity,
-  };
-}
 
   // =========================
   // ADD COMMENT (discussion thread, separate from research notes)
@@ -1494,235 +1493,201 @@ if (removedAssigneeIds.length) {
       data: activity,
     };
   }
-async getDashboardAnalytics(from?: string, to?: string) {
-  // =========================
-  // LOAD STATUS IDS
-  // =========================
-  const statuses = await this.prisma.status.findMany({
-    select: {
-      id: true,
-      key: true,
-    },
-  });
-
-  const STATUS = Object.fromEntries(
-    statuses.map((s) => [s.key, s.id]),
-  ) as Record<string, number>;
-
-  // =========================
-  // LOAD CASES
-  // =========================
-  const createdAt: any = {};
-  if (from) createdAt.gte = new Date(`${from}T00:00:00.000`);
-  if (to)   createdAt.lte = new Date(`${to}T23:59:59.999`);
-  const dateWhere =
-    from || to ? { createdAt } : {};
-
-  const cases = await this.prisma.case.findMany({
-    where: dateWhere,               // <-- apply the range
-    include: {
-      createdBy: true,
-      status: true,
-    },
-  });
-  // const cases = await this.prisma.case.findMany({
-  //   include: {
-  //     createdBy: true,
-  //      status: true,
-  //   },
-  // });
-
-  // =========================
-  // SUMMARY
-  // =========================
-  const totalCases = cases.length;
-
-  const reportRequested = cases.filter(
-    (c) => c.statusId === STATUS.REPORT_REQUESTED,
-  ).length;
-
-  const reportReceived = cases.filter(
-    (c) => c.statusId === STATUS.REPORT_RECEIVED,
-  ).length;
-
-  const awaitingReview = cases.filter(
-    (c) => c.statusId === STATUS.AWAITING_REVIEW,
-  ).length;
-
-  const approved = cases.filter(
-    (c) => c.statusId === STATUS.APPROVED,
-  ).length;
-
-  const mediaRequested = cases.filter(
-    (c) => c.statusId === STATUS.MEDIA_REQUESTED,
-  ).length;
-
-  const completed = cases.filter(
-    (c) => c.statusId === STATUS.COMPLETED,
-  ).length;
-
-  const voided = cases.filter(
-    (c) => c.statusId === STATUS.VOIDED,
-  ).length;
-
-  const voidRate = totalCases
-    ? Math.round((voided / totalCases) * 100)
-    : 0;
-
-  // =========================
-  // AVG CYCLE TIME
-  // =========================
-  const completedCases = cases.filter(
-    (c) => c.statusId === STATUS.COMPLETED,
-  );
-
-  const avgCycleDays = completedCases.length
-    ? Math.round(
-        completedCases.reduce((sum, c) => {
-          const created = new Date(c.createdAt).getTime();
-          const updated = new Date(c.updatedAt).getTime();
-
-          return (
-            sum +
-            Math.ceil(
-              (updated - created) /
-                (1000 * 60 * 60 * 24),
-            )
-          );
-        }, 0) / completedCases.length,
-      )
-    : 0;
-
-  // =========================
-  // RESEARCHERS
-  // =========================
-  const researchers = await this.prisma.user.findMany({
-    where: {
-      role: {
-        name: 'RESEARCHER',
+  async getDashboardAnalytics(from?: string, to?: string) {
+    // =========================
+    // LOAD STATUS IDS
+    // =========================
+    const statuses = await this.prisma.status.findMany({
+      select: {
+        id: true,
+        key: true,
       },
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-    },
-  });
+    });
 
-  // =========================
-  // REQUESTS SUBMITTED BY RESEARCHER
-  // =========================
-  const requestsSubmittedByResearcher = researchers
-    .map((researcher) => {
-      const submittedCases = cases.filter(
-        (c) => c.createdById === researcher.id,
-      );
+    const STATUS = Object.fromEntries(
+      statuses.map((s) => [s.key, s.id]),
+    ) as Record<string, number>;
+
+    // =========================
+    // LOAD CASES
+    // =========================
+    const createdAt: any = {};
+    if (from) createdAt.gte = new Date(`${from}T00:00:00.000`);
+    if (to) createdAt.lte = new Date(`${to}T23:59:59.999`);
+    const dateWhere = from || to ? { createdAt } : {};
+
+    const cases = await this.prisma.case.findMany({
+      where: dateWhere, // <-- apply the range
+      include: {
+        createdBy: true,
+        status: true,
+      },
+    });
+    // const cases = await this.prisma.case.findMany({
+    //   include: {
+    //     createdBy: true,
+    //      status: true,
+    //   },
+    // });
+
+    // =========================
+    // SUMMARY
+    // =========================
+    const totalCases = cases.length;
+
+    const reportRequested = cases.filter(
+      (c) => c.statusId === STATUS.REPORT_REQUESTED,
+    ).length;
+
+    const reportReceived = cases.filter(
+      (c) => c.statusId === STATUS.REPORT_RECEIVED,
+    ).length;
+
+    const awaitingReview = cases.filter(
+      (c) => c.statusId === STATUS.AWAITING_REVIEW,
+    ).length;
+
+    const approved = cases.filter((c) => c.statusId === STATUS.APPROVED).length;
+
+    const mediaRequested = cases.filter(
+      (c) => c.statusId === STATUS.MEDIA_REQUESTED,
+    ).length;
+
+    const completed = cases.filter(
+      (c) => c.statusId === STATUS.COMPLETED,
+    ).length;
+
+    const voided = cases.filter((c) => c.statusId === STATUS.VOIDED).length;
+
+    const voidRate = totalCases ? Math.round((voided / totalCases) * 100) : 0;
+
+    // =========================
+    // AVG CYCLE TIME
+    // =========================
+    const completedCases = cases.filter((c) => c.statusId === STATUS.COMPLETED);
+
+    const avgCycleDays = completedCases.length
+      ? Math.round(
+          completedCases.reduce((sum, c) => {
+            const created = new Date(c.createdAt).getTime();
+            const updated = new Date(c.updatedAt).getTime();
+
+            return sum + Math.ceil((updated - created) / (1000 * 60 * 60 * 24));
+          }, 0) / completedCases.length,
+        )
+      : 0;
+
+    // =========================
+    // RESEARCHERS
+    // =========================
+    const researchers = await this.prisma.user.findMany({
+      where: {
+        role: {
+          name: 'RESEARCHER',
+        },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    // =========================
+    // REQUESTS SUBMITTED BY RESEARCHER
+    // =========================
+    const requestsSubmittedByResearcher = researchers
+      .map((researcher) => {
+        const submittedCases = cases.filter(
+          (c) => c.createdById === researcher.id,
+        );
+
+        return {
+          researcherId: researcher.id,
+          researcherName: `${researcher.firstName} ${researcher.lastName}`,
+          requestsSubmitted: submittedCases.length,
+        };
+      })
+      .sort((a, b) => b.requestsSubmitted - a.requestsSubmitted);
+
+    // =========================
+    // RESEARCHER STATS
+    // =========================
+    const researcherStats = researchers.map((researcher) => {
+      const userCases = cases.filter((c) => c.createdById === researcher.id);
 
       return {
-        researcherId: researcher.id,
-        researcherName: `${researcher.firstName} ${researcher.lastName}`,
-        requestsSubmitted: submittedCases.length,
+        id: researcher.id,
+        name: `${researcher.firstName} ${researcher.lastName}`,
+
+        submitted: userCases.length,
+
+        completed: userCases.filter((c) => c.statusId === STATUS.COMPLETED)
+          .length,
+
+        voided: userCases.filter((c) => c.statusId === STATUS.VOIDED).length,
+
+        approved: userCases.filter((c) => c.statusId === STATUS.APPROVED)
+          .length,
+
+        created: userCases.filter((c) => c.statusId === STATUS.REPORT_REQUESTED)
+          .length,
+
+        mediaRequested: userCases.filter(
+          (c) => c.statusId === STATUS.MEDIA_REQUESTED,
+        ).length,
       };
-    })
-    .sort(
-      (a, b) =>
-        b.requestsSubmitted - a.requestsSubmitted,
-    );
+    });
 
-  // =========================
-  // RESEARCHER STATS
-  // =========================
-  const researcherStats = researchers.map((researcher) => {
-    const userCases = cases.filter(
-      (c) => c.createdById === researcher.id,
-    );
+    // =========================
+    // OLDEST OPEN REQUESTS
+    // (REPORT_REQUESTED ONLY)
+    // =========================
+    const oldestOpenRequests = cases
+      .filter((c) => c.statusId === STATUS.REPORT_REQUESTED)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      .slice(0, 6)
+      .map((c) => ({
+        id: c.id,
+        caseNumber: c.caseNumber,
+        suspectName: c.suspectName,
 
+        statusId: c.statusId,
+        status: {
+          id: c.status.id,
+          key: c.status.key,
+          label: c.status.label,
+          color: c.status.color,
+          stage: c.status.stage,
+        },
+
+        daysOpen: Math.floor(
+          (Date.now() - c.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+        ),
+      }));
     return {
-      id: researcher.id,
-      name: `${researcher.firstName} ${researcher.lastName}`,
+      success: true,
 
-      submitted: userCases.length,
+      summary: {
+        totalCases,
+        reportRequested,
+        reportReceived,
+        awaitingReview,
+        approved,
+        mediaRequested,
+        completed,
+        voided,
+        voidRate,
+        avgCycleDays,
+      },
 
-      completed: userCases.filter(
-        (c) => c.statusId === STATUS.COMPLETED,
-      ).length,
+      requestsSubmittedByResearcher,
 
-      voided: userCases.filter(
-        (c) => c.statusId === STATUS.VOIDED,
-      ).length,
+      researcherStats,
 
-      approved: userCases.filter(
-        (c) => c.statusId === STATUS.APPROVED,
-      ).length,
-
-      created: userCases.filter(
-        (c) => c.statusId === STATUS.REPORT_REQUESTED,
-      ).length,
-
-      mediaRequested: userCases.filter(
-        (c) => c.statusId === STATUS.MEDIA_REQUESTED,
-      ).length,
+      oldestOpenRequests,
     };
-  });
-
-  // =========================
-  // OLDEST OPEN REQUESTS
-  // (REPORT_REQUESTED ONLY)
-  // =========================
-const oldestOpenRequests = cases
-  .filter(
-    (c) => c.statusId === STATUS.REPORT_REQUESTED,
-  )
-  .sort(
-    (a, b) =>
-      a.createdAt.getTime() -
-      b.createdAt.getTime(),
-  )
-  .slice(0, 6)
-  .map((c) => ({
-    id: c.id,
-    caseNumber: c.caseNumber,
-    suspectName: c.suspectName,
-
-    statusId: c.statusId,
-    status: {
-      id: c.status.id,
-      key: c.status.key,
-      label: c.status.label,
-      color: c.status.color,
-      stage: c.status.stage,
-    },
-
-    daysOpen: Math.floor(
-      (Date.now() - c.createdAt.getTime()) /
-        (1000 * 60 * 60 * 24),
-    ),
-  }));
-  return {
-    success: true,
-
-    summary: {
-      totalCases,
-      reportRequested,
-      reportReceived,
-      awaitingReview,
-      approved,
-      mediaRequested,
-      completed,
-      voided,
-      voidRate,
-      avgCycleDays,
-    },
-
-    requestsSubmittedByResearcher,
-
-    researcherStats,
-
-    oldestOpenRequests,
-  };
-}
-
-
+  }
 
   // =========================
   // UPLOAD A DOCUMENT
@@ -1746,7 +1711,9 @@ const oldestOpenRequests = cases
       where: { id: user.sub },
       select: { firstName: true, lastName: true },
     });
-    const fullName = dbUser ? `${dbUser.firstName} ${dbUser.lastName}` : 'Unknown User';
+    const fullName = dbUser
+      ? `${dbUser.firstName} ${dbUser.lastName}`
+      : 'Unknown User';
     const fileName = (file && file.originalname) || 'document';
 
     const activity = await this.prisma.caseActivity.create({
@@ -1763,5 +1730,73 @@ const oldestOpenRequests = cases
       message: 'Document uploaded',
       data: { fileName, activity },
     };
+  }
+
+  async claimCase(id: number, user: any) {
+    const caseItem = await this.prisma.case.findUnique({
+      where: { id },
+      include: {
+        status: true,
+        assignees: true,
+      },
+    });
+
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
+    }
+
+    if (caseItem.status.key !== 'UNASSIGNED') {
+      throw new BadRequestException('This case is not available for claiming');
+    }
+
+    const reportRequested = await this.prisma.status.findUnique({
+      where: {
+        key: 'REPORT_REQUESTED',
+      },
+    });
+
+    if (!reportRequested) {
+      throw new BadRequestException('REPORT_REQUESTED status not found');
+    }
+
+    const alreadyAssigned = caseItem.assignees.some((a) => a.id === user.sub);
+
+    if (alreadyAssigned) {
+      throw new BadRequestException('You already claimed this case');
+    }
+
+    const updated = await this.prisma.case.update({
+      where: {
+        id,
+      },
+
+      data: {
+        // add user into CaseAssignees join table
+        assignees: {
+          connect: {
+            id: user.sub,
+          },
+        },
+
+        // move workflow forward
+        statusId: reportRequested.id,
+      },
+
+      include: {
+        assignees: true,
+        status: true,
+      },
+    });
+
+    await this.prisma.caseActivity.create({
+      data: {
+        caseId: id,
+        userId: user.sub,
+        type: 'CASE_ASSIGNED',
+        message: `Case claimed by user ${user.sub}`,
+      },
+    });
+
+    return updated;
   }
 }

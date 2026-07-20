@@ -136,6 +136,11 @@ async login(
   if (!isMatch) {
     throw new UnauthorizedException('Invalid credentials');
   }
+    if (!user.isActive) {
+    throw new UnauthorizedException(
+      'Your account has been deactivated. Please contact an administrator.',
+    );
+  }
 
   const payload = {
     sub: user.id,

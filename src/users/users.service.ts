@@ -34,6 +34,7 @@ export class UsersService {
           email: data.email,
           passwordHash: hash,
           roleId: data.roleId,
+           isActive: data.isActive ?? true, // Default to true if not provided
         },
         include: {
           role: true,
@@ -112,59 +113,125 @@ async findAll() {
   }
 
   // UPDATE USER
+  // async update(id: number, data: any) {
+  //   try {
+  //     if (data.roleId) {
+  //       const role = await this.prisma.role.findUnique({
+  //         where: {
+  //           id: data.roleId,
+  //         },
+  //       });
+
+  //       if (!role) {
+  //         throw new BadRequestException('Invalid role');
+  //       }
+  //     }
+
+  //     const updateData: any = {
+  //       firstName: data.firstName,
+  //       lastName: data.lastName,
+  //       email: data.email,
+  //       roleId: data.roleId,
+  //     };
+
+  //     if (data.password) {
+  //       updateData.passwordHash = await bcrypt.hash(
+  //         data.password,
+  //         10,
+  //       );
+  //     }
+
+  //     const user = await this.prisma.user.update({
+  //       where: { id },
+  //       data: updateData,
+  //       include: {
+  //         role: true,
+  //       },
+  //     });
+
+  //     return {
+  //       success: true,
+  //       message: 'User updated successfully',
+  //       data: this.formatUser(user),
+  //     };
+  //   } catch (error: any) {
+  //     if (error.code === 'P2025') {
+  //       throw new NotFoundException('User not found');
+  //     }
+
+  //     if (error.code === 'P2002') {
+  //       throw new ConflictException('Email already exists');
+  //     }
+
+  //     throw error;
+  //   }
+  // }
+
   async update(id: number, data: any) {
-    try {
-      if (data.roleId) {
-        const role = await this.prisma.role.findUnique({
-          where: {
-            id: data.roleId,
-          },
-        });
-
-        if (!role) {
-          throw new BadRequestException('Invalid role');
-        }
-      }
-
-      const updateData: any = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        roleId: data.roleId,
-      };
-
-      if (data.password) {
-        updateData.passwordHash = await bcrypt.hash(
-          data.password,
-          10,
-        );
-      }
-
-      const user = await this.prisma.user.update({
-        where: { id },
-        data: updateData,
-        include: {
-          role: true,
+  try {
+    if (data.roleId) {
+      const role = await this.prisma.role.findUnique({
+        where: {
+          id: data.roleId,
         },
       });
 
-      return {
-        success: true,
-        message: 'User updated successfully',
-        data: this.formatUser(user),
-      };
-    } catch (error: any) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User not found');
+      if (!role) {
+        throw new BadRequestException('Invalid role');
       }
-
-      if (error.code === 'P2002') {
-        throw new ConflictException('Email already exists');
-      }
-
-      throw error;
     }
+
+    const updateData: any = {};
+
+    if (data.firstName !== undefined) {
+      updateData.firstName = data.firstName;
+    }
+
+    if (data.lastName !== undefined) {
+      updateData.lastName = data.lastName;
+    }
+
+    if (data.email !== undefined) {
+      updateData.email = data.email;
+    }
+
+    if (data.roleId !== undefined) {
+      updateData.roleId = data.roleId;
+    }
+
+    if (data.isActive !== undefined) {
+      updateData.isActive = data.isActive;
+    }
+
+    if (data.password) {
+      updateData.passwordHash = await bcrypt.hash(data.password, 10);
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: updateData,
+      include: {
+        role: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'User updated successfully',
+      data: this.formatUser(user),
+    };
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      throw new NotFoundException('User not found');
+    }
+
+    if (error.code === 'P2002') {
+      throw new ConflictException('Email already exists');
+    }
+
+    throw error;
   }
+}
 
   // DELETE USER
   async delete(id: number) {
