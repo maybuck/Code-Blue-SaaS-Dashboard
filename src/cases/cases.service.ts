@@ -900,75 +900,57 @@ export class CasesService {
   // DUPLICATE FILTER
   // Same suspect name + incident date
   // =========================
-  if (
-    query.duplicatesOnly === 'true' ||
-    query.duplicatesOnly === true
-  ) {
-
-    const duplicateGroups = await this.prisma.case.groupBy({
-      by: [
-        'suspectName',
-        'incidentDate',
-      ],
-
-      where: {
-        suspectName: {
-          not: null,
-        },
-        incidentDate: {
-          not: null,
-        },
-      },
-
-      _count: {
-        id: true,
-      },
-
-      having: {
-        id: {
-          _count: {
-            gt: 1,
-          },
-        },
-      },
-    });
-
-
-    if (duplicateGroups.length) {
-
-      const duplicateCases =
-        await this.prisma.case.findMany({
-          where: {
-            OR: duplicateGroups.map((group) => ({
-              suspectName: group.suspectName,
-              incidentDate: group.incidentDate,
-            })),
-          },
-
-          select: {
-            id: true,
-          },
-        });
-
-
-      where.id = {
-        in: duplicateCases.map((c) => c.id),
-      };
-
-    } else {
-
-      // no duplicates found
-      where.id = {
-        in: [],
-      };
-
-    }
-  }
-  // Applied after the query using the duplicate rule below (same suspect name +
-  // incident date), so BOTH sides of each duplicate pair are returned.
-  // =========================
+  // ONE groupBy is the single source of truth here. It returns every
+  // (suspectName, incidentDate) pair that occurs more than once, which is all
+  // we need for BOTH jobs: filtering the query when duplicatesOnly=true, and
+  // stamping `isDuplicate` on each row we return. Because we match on the pair
+  // itself (not on a pre-resolved id list) BOTH sides of every duplicate pair
+  // come back, and pagination/counts stay correct.
   const wantDuplicatesOnly =
     query.duplicatesOnly === 'true' || query.duplicatesOnly === true;
+
+  const dupKey = (name?: string | null, date?: Date | string | null) =>
+    `${(name || '').trim().toLowerCase()}|${date ? new Date(date).toISOString() : ''}`;
+
+  let dupSet = new Set<string>();
+  let duplicateGroups: Array<{
+    suspectName: string | null;
+    incidentDate: Date | null;
+  }> = [];
+
+  try {
+    duplicateGroups = (await this.prisma.case.groupBy({
+      by: ['suspectName', 'incidentDate'],
+      where: {
+        suspectName: { not: null },
+        incidentDate: { not: null },
+      },
+      _count: { id: true },
+      having: { id: { _count: { gt: 1 } } },
+    })) as any;
+
+    dupSet = new Set(
+      duplicateGroups
+        .filter((g) => g.suspectName && g.suspectName.trim())
+        .map((g) => dupKey(g.suspectName, g.incidentDate)),
+    );
+  } catch {
+    duplicateGroups = [];
+    dupSet = new Set();
+  }
+
+  if (wantDuplicatesOnly) {
+    and.push(
+      duplicateGroups.length
+        ? {
+            OR: duplicateGroups.map((g) => ({
+              suspectName: g.suspectName,
+              incidentDate: g.incidentDate,
+            })),
+          }
+        : { id: { in: [] } }, // no duplicates exist -> match nothing
+    );
+  }
 
 
   // =========================
@@ -1123,42 +1105,13 @@ export class CasesService {
     },
   });
 
-  // =========================
-  // DUPLICATE DETECTION (backend-driven)
-  // Two cases are duplicates when they share the same suspect name AND the same
-  // incident date. Computed across the whole table so it's correct regardless of
-  // the current filters/paging, then stamped onto each returned case as
-  // `isDuplicate` (both sides of a pair are flagged).
-  // =========================
-  const dupKey = (name?: string | null, date?: Date | string | null) =>
-    `${(name || '').trim().toLowerCase()}|${date ? new Date(date).toISOString() : ''}`;
-
-  let dupSet = new Set<string>();
-  try {
-    const all = await this.prisma.case.findMany({
-      select: { suspectName: true, incidentDate: true },
-    });
-    const counts = new Map<string, number>();
-    for (const r of all) {
-      if (!r.suspectName || !r.suspectName.trim()) continue;
-      const k = dupKey(r.suspectName, r.incidentDate);
-      counts.set(k, (counts.get(k) || 0) + 1);
-    }
-    for (const [k, n] of counts) {
-      if (n > 1) dupSet.add(k);
-    }
-  } catch {
-    dupSet = new Set();
-  }
-
-  let data: any[] = cases.map((c) => ({
+  // Stamp the duplicate flag using `dupSet`, already built above from the single
+  // groupBy. No extra query, and no second in-memory filter: when
+  // duplicatesOnly=true the where clause has already narrowed the result set.
+  const data: any[] = cases.map((c) => ({
     ...c,
     isDuplicate: dupSet.has(dupKey(c.suspectName, c.incidentDate)),
   }));
-
-  if (wantDuplicatesOnly) {
-    data = data.filter((c) => c.isDuplicate);
-  }
 
   return {
     success: true,
