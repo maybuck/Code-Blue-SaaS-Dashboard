@@ -672,194 +672,460 @@ export class CasesService {
     };
   }
 
-  async findAll(user: any, query: any = {}) {
-    const where: any = {};
-    const and: any[] = [];
+  // async findAll(user: any, query: any = {}) {
+  //   const where: any = {};
+  //   const and: any[] = [];
 
-    // =========================
-    // MINE FILTER
-    // =========================
-    if (query.mine === 'true' || query.mine === true) {
-      and.push({
-        OR: [
-          { createdById: user.sub },
-          { assignees: { some: { id: user.sub } } },
-        ],
-      });
-    }
+  //   // =========================
+  //   // MINE FILTER
+  //   // =========================
+  //   if (query.mine === 'true' || query.mine === true) {
+  //     and.push({
+  //       OR: [
+  //         { createdById: user.sub },
+  //         { assignees: { some: { id: user.sub } } },
+  //       ],
+  //     });
+  //   }
 
-    // =========================
-    // STATUS FILTER
-    // =========================
-    if (query.status) {
-      const status = await this.prisma.status.findFirst({
-        where: {
-          key: query.status,
-        },
-      });
+  //   // =========================
+  //   // STATUS FILTER
+  //   // =========================
+  //   if (query.status) {
+  //     const status = await this.prisma.status.findFirst({
+  //       where: {
+  //         key: query.status,
+  //       },
+  //     });
 
-      if (status) {
-        where.statusId = status.id;
-      }
-    }
+  //     if (status) {
+  //       where.statusId = status.id;
+  //     }
+  //   }
 
-    // =========================
-    // DUPLICATE FILTER
-    // =========================
-    if (query.duplicatesOnly === 'true' || query.duplicatesOnly === true) {
-      where.isDuplicate = true;
-    }
+  //   // =========================
+  //   // DUPLICATE FILTER
+  //   // =========================
+  //   if (query.duplicatesOnly === 'true' || query.duplicatesOnly === true) {
+  //     where.isDuplicate = true;
+  //   }
 
-    // =========================
-    // SEARCH FILTER
-    // =========================
-    if (query.q && String(query.q).trim()) {
-      const q = String(query.q).trim();
+  //   // =========================
+  //   // SEARCH FILTER
+  //   // =========================
+  //   if (query.q && String(query.q).trim()) {
+  //     const q = String(query.q).trim();
 
-      and.push({
-        OR: [
-          {
-            caseNumber: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-          {
-            suspectName: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-          {
-            title: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-          {
-            policeAgency: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-          {
-            location: {
-              contains: q,
-              mode: 'insensitive',
-            },
-          },
-        ],
-      });
-    }
+  //     and.push({
+  //       OR: [
+  //         {
+  //           caseNumber: {
+  //             contains: q,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           suspectName: {
+  //             contains: q,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           title: {
+  //             contains: q,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           policeAgency: {
+  //             contains: q,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //         {
+  //           location: {
+  //             contains: q,
+  //             mode: 'insensitive',
+  //           },
+  //         },
+  //       ],
+  //     });
+  //   }
 
-    if (and.length) {
-      where.AND = and;
-    }
+  //   if (and.length) {
+  //     where.AND = and;
+  //   }
 
-    const cases = await this.prisma.case.findMany({
-      where,
+  //   const cases = await this.prisma.case.findMany({
+  //     where,
 
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+  //     include: {
+  //       createdBy: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //         },
+  //       },
 
-        assignedTo: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+  //       assignedTo: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //         },
+  //       },
 
-        writer: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+  //       writer: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //         },
+  //       },
 
-        editor: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+  //       editor: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //         },
+  //       },
 
-        editorStatus: true,
+  //       editorStatus: true,
 
-        // Uploaded media
-        activities: {
-          where: {
-            type: 'MEDIA',
-          },
-          select: {
-            id: true,
-          },
-        },
+  //       // Uploaded media
+  //       activities: {
+  //         where: {
+  //           type: 'MEDIA',
+  //         },
+  //         select: {
+  //           id: true,
+  //         },
+  //       },
 
-        assignees: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
+  //       assignees: {
+  //         select: {
+  //           id: true,
+  //           firstName: true,
+  //           lastName: true,
+  //         },
+  //       },
 
-        agency: {
-          select: {
-            id: true,
-            name: true,
-            allowed: true,
-          },
-        },
+  //       agency: {
+  //         select: {
+  //           id: true,
+  //           name: true,
+  //           allowed: true,
+  //         },
+  //       },
 
-        duplicateOf: {
-          select: {
-            id: true,
-            caseNumber: true,
-            suspectName: true,
-          },
-        },
+  //       duplicateOf: {
+  //         select: {
+  //           id: true,
+  //           caseNumber: true,
+  //           suspectName: true,
+  //         },
+  //       },
 
-        duplicates: {
-          select: {
-            id: true,
-            caseNumber: true,
-            suspectName: true,
-            createdAt: true,
-          },
-        },
+  //       duplicates: {
+  //         select: {
+  //           id: true,
+  //           caseNumber: true,
+  //           suspectName: true,
+  //           createdAt: true,
+  //         },
+  //       },
 
-        status: true,
+  //       status: true,
 
-        media: true,
-      },
+  //       media: true,
+  //     },
 
-      orderBy: {
-        createdAt: 'desc',
+  //     orderBy: {
+  //       createdAt: 'desc',
+  //     },
+  //   });
+
+  //   return {
+  //     success: true,
+  //     message: 'Cases fetched successfully',
+  //     data: cases,
+  //   };
+  // }
+  // =========================
+  // GET ONE CASE (WITH TIMELINE)
+  // =========================
+
+  // =========================
+  // GET ONE CASE (WITH TIMELINE)
+  // =========================
+  
+  
+   async findAll(user: any, query: any = {}) {
+  const where: any = {};
+  const and: any[] = [];
+
+  // =========================
+  // MINE FILTER
+  // =========================
+  if (query.mine === 'true' || query.mine === true) {
+    and.push({
+      OR: [
+        { createdById: user.sub },
+        { assignees: { some: { id: user.sub } } },
+        { assignedToId: user.sub },
+      ],
+    });
+  }
+
+
+  // =========================
+  // STATUS FILTER
+  // =========================
+  if (query.status) {
+    const status = await this.prisma.status.findFirst({
+      where: {
+        key: query.status,
       },
     });
 
-    return {
-      success: true,
-      message: 'Cases fetched successfully',
-      data: cases,
-    };
+    if (status) {
+      where.statusId = status.id;
+    }
   }
-  // =========================
-  // GET ONE CASE (WITH TIMELINE)
-  // =========================
+
 
   // =========================
-  // GET ONE CASE (WITH TIMELINE)
+  // DUPLICATE FILTER
+  // Same suspect name + incident date
   // =========================
+  if (
+    query.duplicatesOnly === 'true' ||
+    query.duplicatesOnly === true
+  ) {
+
+    const duplicateGroups = await this.prisma.case.groupBy({
+      by: [
+        'suspectName',
+        'incidentDate',
+      ],
+
+      where: {
+        suspectName: {
+          not: null,
+        },
+        incidentDate: {
+          not: null,
+        },
+      },
+
+      _count: {
+        id: true,
+      },
+
+      having: {
+        id: {
+          _count: {
+            gt: 1,
+          },
+        },
+      },
+    });
+
+
+    if (duplicateGroups.length) {
+
+      const duplicateCases =
+        await this.prisma.case.findMany({
+          where: {
+            OR: duplicateGroups.map((group) => ({
+              suspectName: group.suspectName,
+              incidentDate: group.incidentDate,
+            })),
+          },
+
+          select: {
+            id: true,
+          },
+        });
+
+
+      where.id = {
+        in: duplicateCases.map((c) => c.id),
+      };
+
+    } else {
+
+      // no duplicates found
+      where.id = {
+        in: [],
+      };
+
+    }
+  }
+
+
+  // =========================
+  // SEARCH FILTER
+  // =========================
+  if (query.q && String(query.q).trim()) {
+
+    const q = String(query.q).trim();
+
+    and.push({
+      OR: [
+        {
+          caseNumber: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          suspectName: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          title: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          policeAgency: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+        {
+          location: {
+            contains: q,
+            mode: 'insensitive',
+          },
+        },
+      ],
+    });
+  }
+
+
+  if (and.length) {
+    where.AND = and;
+  }
+
+
+  const cases = await this.prisma.case.findMany({
+    where,
+
+    include: {
+
+      createdBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+
+      assignedTo: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+
+      writer: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+
+      editor: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+
+      editorStatus: true,
+
+
+      activities: {
+        where: {
+          type: 'MEDIA',
+        },
+        select: {
+          id: true,
+        },
+      },
+
+
+      assignees: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
+
+      agency: {
+        select: {
+          id: true,
+          name: true,
+          allowed: true,
+        },
+      },
+
+
+      duplicateOf: {
+        select: {
+          id: true,
+          caseNumber: true,
+          suspectName: true,
+        },
+      },
+
+
+      duplicates: {
+        select: {
+          id: true,
+          caseNumber: true,
+          suspectName: true,
+          createdAt: true,
+        },
+      },
+
+
+      status: true,
+
+
+      media: true,
+    },
+
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+
+  return {
+    success: true,
+    message: 'Cases fetched successfully',
+    data: cases,
+  };
+}
+  
   async findOne(id: number, user: any) {
     const caseItem = await this.prisma.case.findUnique({
       where: { id },
