@@ -1799,4 +1799,117 @@ try {
 
     return updated;
   }
+
+  async bulkAssign(data: any, user: any) {
+
+  const { caseIds, researcherId } = data;
+
+  if (!Array.isArray(caseIds) || caseIds.length === 0) {
+    throw new BadRequestException('No cases selected');
+  }
+
+  if (!researcherId) {
+    throw new BadRequestException('Researcher is required');
+  }
+
+
+  const researcher = await this.prisma.user.findUnique({
+    where: {
+      id: Number(researcherId),
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+    },
+  });
+
+
+  if (!researcher) {
+    throw new NotFoundException('Researcher not found');
+  }
+
+
+  const cases = await this.prisma.case.findMany({
+    where: {
+      id: {
+        in: caseIds.map(Number),
+      },
+    },
+    select: {
+      id: true,
+      caseNumber: true,
+    },
+  });
+
+
+  if (cases.length !== caseIds.length) {
+    throw new BadRequestException(
+      'Some cases were not found',
+    );
+  }
+
+
+  const updated = await this.prisma.$transaction(
+    async (tx) => {
+
+      await tx.case.updateMany({
+        where: {
+          id: {
+            in: caseIds.map(Number),
+          },
+        },
+        data: {
+          assignedToId: Number(researcherId),
+        },
+      });
+
+
+      await tx.caseActivity.createMany({
+        data: cases.map((c) => ({
+          caseId: c.id,
+          userId: user.sub,
+          type: 'CASE_ASSIGNED',
+          message:
+            `Case assigned to ${researcher.firstName} ${researcher.lastName}`,
+        })),
+      });
+
+
+      // Fetch updated cases with researcher
+      return await tx.case.findMany({
+        where: {
+          id: {
+            in: caseIds.map(Number),
+          },
+        },
+        select: {
+        id: true,
+        caseNumber: true,
+        suspectName: true,
+        assignedTo: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      });
+
+    },
+  );
+
+
+  return {
+    success: true,
+    message:
+      `${updated.length} cases assigned successfully`,
+    researcher: {
+      id: researcher.id,
+      name: `${researcher.firstName} ${researcher.lastName}`,
+    },
+    data: updated,
+  };
+}
 }

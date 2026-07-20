@@ -64,6 +64,18 @@ export class CasesController {
     return this.cases.getActivityFeed(req.user);
   }
 
+   @Patch('bulk-assign')
+    @Roles('MANAGER', 'OWNER')
+  async bulkAssign(
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.cases.bulkAssign(
+      body,
+      req.user,
+    );
+  }
+
    @Patch(':id/claim')
   async claimCase(
     @Param('id', ParseIntPipe) id: number,
