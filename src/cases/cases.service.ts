@@ -1567,6 +1567,20 @@ try {
         media: true,
       },
     });
+    
+  if (Array.isArray(dto.media) && dto.media.length > 0) {
+  await this.prisma.caseMedia.createMany({
+    data: dto.media.map((item: any) => ({
+      caseId: updated.id,
+      uploadedById: user.sub,
+      fileName: item.fileName,
+      fileUrl: item.fileUrl,
+      mediaType: item.mediaType,
+      isReport: item.isReport ?? false,
+    })),
+  });
+}
+
 
     // =========================
     // LOGS
