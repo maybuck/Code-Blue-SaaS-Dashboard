@@ -1442,7 +1442,7 @@ try {
       }
     }
 
-    const { note: incomingNote, assigneeIds, ...caseData } = dto;
+    const { note: incomingNote, assigneeIds,media, ...caseData } = dto;
 
     // =========================
     // ASSIGNEES
