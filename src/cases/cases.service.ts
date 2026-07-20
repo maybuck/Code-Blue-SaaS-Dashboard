@@ -964,6 +964,11 @@ export class CasesService {
 
     }
   }
+  // Applied after the query using the duplicate rule below (same suspect name +
+  // incident date), so BOTH sides of each duplicate pair are returned.
+  // =========================
+  const wantDuplicatesOnly =
+    query.duplicatesOnly === 'true' || query.duplicatesOnly === true;
 
 
   // =========================
@@ -1118,11 +1123,47 @@ export class CasesService {
     },
   });
 
+  // =========================
+  // DUPLICATE DETECTION (backend-driven)
+  // Two cases are duplicates when they share the same suspect name AND the same
+  // incident date. Computed across the whole table so it's correct regardless of
+  // the current filters/paging, then stamped onto each returned case as
+  // `isDuplicate` (both sides of a pair are flagged).
+  // =========================
+  const dupKey = (name?: string | null, date?: Date | string | null) =>
+    `${(name || '').trim().toLowerCase()}|${date ? new Date(date).toISOString() : ''}`;
+
+  let dupSet = new Set<string>();
+  try {
+    const all = await this.prisma.case.findMany({
+      select: { suspectName: true, incidentDate: true },
+    });
+    const counts = new Map<string, number>();
+    for (const r of all) {
+      if (!r.suspectName || !r.suspectName.trim()) continue;
+      const k = dupKey(r.suspectName, r.incidentDate);
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    for (const [k, n] of counts) {
+      if (n > 1) dupSet.add(k);
+    }
+  } catch {
+    dupSet = new Set();
+  }
+
+  let data: any[] = cases.map((c) => ({
+    ...c,
+    isDuplicate: dupSet.has(dupKey(c.suspectName, c.incidentDate)),
+  }));
+
+  if (wantDuplicatesOnly) {
+    data = data.filter((c) => c.isDuplicate);
+  }
 
   return {
     success: true,
     message: 'Cases fetched successfully',
-    data: cases,
+    data,
   };
 }
   
