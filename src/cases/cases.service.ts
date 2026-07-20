@@ -1002,6 +1002,28 @@ export class CasesService {
   }
 
 
+  let orderBy: any = {
+  createdAt: 'desc',
+};
+
+if (
+  query.duplicatesOnly === 'true' ||
+  query.duplicatesOnly === true
+) {
+  orderBy = [
+    {
+      suspectName: 'asc',
+    },
+    {
+      incidentDate: 'asc',
+    },
+    {
+      createdAt: 'asc',
+    },
+  ];
+}
+
+
   const cases = await this.prisma.case.findMany({
     where,
 
@@ -1100,9 +1122,7 @@ export class CasesService {
     },
 
 
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy
   });
 
   // Stamp the duplicate flag using `dupSet`, already built above from the single
