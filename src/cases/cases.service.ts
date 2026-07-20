@@ -565,18 +565,33 @@ export class CasesService {
       // =========================
       // 📎 CASE MEDIA (PDF UPLOAD)
       // =========================
-      if (data.pdfUrl) {
-        await tx.caseMedia.create({
-          data: {
-            caseId: caseItem.id,
-            uploadedById: user.sub,
-            fileName: data.pdfName ?? 'document.pdf',
-            fileUrl: data.pdfUrl,
-            mediaType: 'pdf',
-            isReport: data.isReport ?? false,
-          },
-        });
-      }
+      // if (data.pdfUrl) {
+      //   await tx.caseMedia.create({
+      //     data: {
+      //       caseId: caseItem.id,
+      //       uploadedById: user.sub,
+      //       fileName: data.pdfName ?? 'document.pdf',
+      //       fileUrl: data.pdfUrl,
+      //       mediaType: 'pdf',
+      //       isReport: data.isReport ?? false,
+      //     },
+      //   });
+      // }
+      // =========================
+// CASE MEDIA
+// =========================
+if (Array.isArray(data.media) && data.media.length > 0) {
+  await tx.caseMedia.createMany({
+    data: data.media.map((item: any) => ({
+      caseId: caseItem.id,
+      uploadedById: user.sub,
+      fileName: item.fileName,
+      fileUrl: item.fileUrl,
+      mediaType: item.mediaType,
+      isReport: item.isReport ?? false,
+    })),
+  });
+}
 
       if (data.caseFolderUrl) {
         await tx.caseMedia.create({
