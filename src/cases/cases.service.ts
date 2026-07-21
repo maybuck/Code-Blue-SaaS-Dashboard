@@ -2153,12 +2153,22 @@ try {
       },
     });
 
+    // Resolve the claimer's real name — the activity message is shown verbatim
+    // in the notifications feed, so a raw id read as "Case claimed by user 3".
+    const claimer = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { firstName: true, lastName: true },
+    });
+    const claimerName = claimer
+      ? `${claimer.firstName} ${claimer.lastName}`.trim()
+      : 'Unknown User';
+
     await this.prisma.caseActivity.create({
       data: {
         caseId: id,
         userId: user.sub,
         type: 'CASE_ASSIGNED',
-        message: `Case claimed by user ${user.sub}`,
+        message: `Case claimed by ${claimerName}`,
       },
     });
 
