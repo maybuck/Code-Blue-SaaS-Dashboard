@@ -939,6 +939,11 @@ if (Array.isArray(data.media) && data.media.length > 0) {
       where: {
         suspectName: { not: null },
         incidentDate: { not: null },
+        // Cases a user has explicitly marked "Not a duplicate" are excluded
+        // from counting. That both un-flags the dismissed case AND un-flags the
+        // case it was matched against once the group drops back to one member,
+        // which is the point of the override.
+        notDuplicate: false,
       },
       _count: { id: true },
       having: { id: { _count: { gt: 1 } } },
@@ -958,6 +963,10 @@ if (Array.isArray(data.media) && data.media.length > 0) {
     and.push(
       duplicateGroups.length
         ? {
+            // A group can still have 2+ members after one is dismissed, so the
+            // dismissed case must be excluded here as well or it would reappear
+            // in the Duplicates-only list.
+            notDuplicate: false,
             OR: duplicateGroups.map((g) => ({
               suspectName: g.suspectName,
               incidentDate: g.incidentDate,
@@ -1145,7 +1154,10 @@ if (
   // duplicatesOnly=true the where clause has already narrowed the result set.
   const data: any[] = cases.map((c) => ({
     ...c,
-    isDuplicate: dupSet.has(dupKey(c.suspectName, c.incidentDate)),
+    // An explicit "Not a duplicate" override always wins over detection.
+    isDuplicate: c.notDuplicate
+      ? false
+      : dupSet.has(dupKey(c.suspectName, c.incidentDate)),
   }));
 
   return {
@@ -1207,6 +1219,15 @@ if (
             id: true,
             name: true,
             allowed: true,
+          },
+        },
+
+        // Who dismissed the duplicate warning, for the audit line in the UI.
+        notDuplicateBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
           },
         },
 
@@ -1290,10 +1311,13 @@ if (
 try {
   const name = (caseItem.suspectName || '').trim();
 
-  if (name) {
+  // A case marked "Not a duplicate" shouldn't show duplicate suggestions at
+  // all, and dismissed cases shouldn't be suggested against others either.
+  if (name && !caseItem.notDuplicate) {
     possibleDuplicates = await this.prisma.case.findMany({
       where: {
         id: { not: caseItem.id },
+        notDuplicate: false,
 
         suspectName: {
           equals: name,
@@ -1553,6 +1577,16 @@ try {
             ? Number(dto.scriptStatusId)
             : null,
         }),
+
+        // "Not a duplicate" override. Stamps who dismissed the warning and
+        // when, and clears the stamp if the override is undone.
+        ...(dto.notDuplicate !== undefined && {
+          notDuplicate: Boolean(dto.notDuplicate),
+          notDuplicateAt: dto.notDuplicate ? new Date() : null,
+          notDuplicateById: dto.notDuplicate ? user.sub : null,
+          // A case that isn't a duplicate shouldn't stay linked to an original.
+          ...(dto.notDuplicate ? { isDuplicate: false, duplicateOfId: null } : {}),
+        }),
       },
 
       include: {
@@ -1581,6 +1615,23 @@ try {
   });
 }
 
+
+    // Record the duplicate override on the timeline so it's auditable.
+    if (
+      dto.notDuplicate !== undefined &&
+      Boolean(dto.notDuplicate) !== Boolean(caseItem.notDuplicate)
+    ) {
+      await this.prisma.caseActivity.create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_UPDATED',
+          message: dto.notDuplicate
+            ? `Marked as NOT a duplicate by ${fullName}`
+            : `Duplicate override removed by ${fullName}`,
+        },
+      });
+    }
 
     // =========================
     // LOGS

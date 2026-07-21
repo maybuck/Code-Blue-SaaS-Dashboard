@@ -30,6 +30,9 @@ model User {
 writtenCases Case[] @relation("CaseWriter")
 editedCases  Case[] @relation("CaseEditor")
 
+  // Cases this user has marked as "not a duplicate".
+  dismissedDuplicates Case[] @relation("NotDuplicateBy")
+
   // Activity Timeline
   activities    CaseActivity[]
 
@@ -88,6 +91,15 @@ model Case {
 
   // Duplicate Tracking
   isDuplicate     Boolean    @default(false)
+
+  // Manual override: a user has reviewed the duplicate warning and confirmed
+  // this case is NOT a duplicate. Cases flagged here are excluded from
+  // duplicate-group detection entirely, so they stop being flagged and stop
+  // causing the case they were matched against to be flagged.
+  notDuplicate    Boolean    @default(false)
+  notDuplicateAt  DateTime?
+  notDuplicateById Int?
+  notDuplicateBy  User?      @relation("NotDuplicateBy", fields: [notDuplicateById], references: [id])
 
   duplicateOfId   Int?
   duplicateOf     Case?      @relation("DuplicateCase", fields: [duplicateOfId], references: [id])
