@@ -116,6 +116,18 @@ export class CasesController {
   // =========================
   // DELETE CASE
   // =========================
+  // Bulk delete. Declared BEFORE ':id' so "bulk-delete" isn't parsed as an id.
+  // Uses POST because a request body on DELETE isn't universally supported by
+  // proxies/clients. Body: { caseIds: number[] }.
+  @Post('bulk-delete')
+  @Permissions('case.delete')
+  bulkDelete(
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.cases.bulkDelete(body?.caseIds, req.user);
+  }
+
   // Owners (researchers) may delete their own cases; managers/admins any case.
   // The service enforces the owner-or-manager rule.
   @Delete(':id')

@@ -1772,6 +1772,67 @@ try {
     };
   }
 
+  // =========================
+  // BULK DELETE
+  // Delete several cases at once (used by the Duplicates view to clear out
+  // duplicate rows). Requires the case.delete permission, same as single
+  // delete. Any case that is referenced as another case's `duplicateOf` is
+  // detached first so the foreign key doesn't block the delete.
+  // =========================
+  async bulkDelete(caseIds: any, user: any) {
+    if (!user.permissions?.includes('case.delete')) {
+      throw new ForbiddenException('You cannot delete cases');
+    }
+
+    const ids = Array.isArray(caseIds)
+      ? [...new Set(caseIds.map(Number).filter((n) => !Number.isNaN(n)))]
+      : [];
+
+    if (ids.length === 0) {
+      throw new BadRequestException('No cases selected');
+    }
+
+    // Only delete rows that actually exist; report the rest back to the caller.
+    const existing = await this.prisma.case.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    const existingIds = existing.map((c) => c.id);
+    const missing = ids.filter((id) => !existingIds.includes(id));
+
+    if (existingIds.length === 0) {
+      return {
+        success: true,
+        message: 'No matching cases to delete',
+        deletedCount: 0,
+        missing,
+      };
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Detach any child duplicates that point at a case being deleted, plus
+      // repoint nothing else — the deleted rows' own duplicateOf link goes away
+      // with them.
+      await tx.case.updateMany({
+        where: { duplicateOfId: { in: existingIds } },
+        data: { duplicateOfId: null },
+      });
+
+      const deleted = await tx.case.deleteMany({
+        where: { id: { in: existingIds } },
+      });
+
+      return deleted.count;
+    });
+
+    return {
+      success: true,
+      message: `${result} case${result === 1 ? '' : 's'} deleted successfully`,
+      deletedCount: result,
+      missing,
+    };
+  }
+
   async addNote(caseId: number, note: string, user: any) {
     const caseItem = await this.prisma.case.findUnique({
       where: { id: caseId },
