@@ -16,7 +16,9 @@ import { JwtStrategy } from './jwt.strategy/jwt.strategy';
 
     JwtModule.register({
       secret: process.env.JWT_SECRET,
-      signOptions: { expiresIn: '1d' },
+      // Fallback default; login() overrides this per-request (7d, or 30d with
+      // "Remember me"). Kept in sync so any token signed without options matches.
+      signOptions: { expiresIn: '7d' },
     }),
   ],
 

@@ -149,14 +149,14 @@ async login(
     roleId: user.role.id,
   };
 
-  const token = await this.jwt.signAsync(payload, {
-    expiresIn: rememberMe ? '30d' : '1d', // customize as needed
-  });
+  // Session length: 7 days by default, 30 days when the user ticks "Remember me".
+  const expiresIn = rememberMe ? '30d' : '7d';
+  const token = await this.jwt.signAsync(payload, { expiresIn });
 
   return {
     access_token: token,
     token_type: 'Bearer',
-    expires_in: rememberMe ? '30d' : '1d',
+    expires_in: expiresIn,
     user: this.sanitize(user),
   };
 }

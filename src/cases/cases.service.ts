@@ -393,6 +393,9 @@ export class CasesService {
     // =========================
     let isDuplicate = false;
     let duplicateOfId: number | null = null;
+    // Details of the case we matched against, returned to the client so the
+    // "possible duplicate" alert can name it and link straight to it.
+    let duplicateOf: any = null;
 
     if (data.suspectName) {
       const existingCase = await this.prisma.case.findFirst({
@@ -402,13 +405,23 @@ export class CasesService {
             mode: 'insensitive',
           },
           isDuplicate: false,
+          notDuplicate: false,
         },
         orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          caseNumber: true,
+          suspectName: true,
+          incidentDate: true,
+          policeAgency: true,
+          status: { select: { key: true, label: true } },
+        },
       });
 
       if (existingCase) {
         isDuplicate = true;
         duplicateOfId = existingCase.id;
+        duplicateOf = existingCase;
       }
     }
 
@@ -611,9 +624,12 @@ if (Array.isArray(data.media) && data.media.length > 0) {
     return {
       success: true,
       message: isDuplicate
-        ? `Case created — possible duplicate of Case #${duplicateOfId}`
+        ? `Case created — possible duplicate of Case ${
+            duplicateOf?.caseNumber || `#${duplicateOfId}`
+          }`
         : 'Case created successfully',
-      data: result,
+      // Surface the matched case so the client can link to it.
+      data: { ...result, duplicateOf },
     };
   }
 
