@@ -980,44 +980,35 @@ if (Array.isArray(data.media) && data.media.length > 0) {
   // =========================
   // SEARCH FILTER
   // =========================
+  // Token-based matching: split the query on whitespace and require EVERY word
+  // to appear (in any of the searchable fields). This makes the search order-
+  // and gap-insensitive, so "Shane Johnson" matches "Shane Steven Johnson" — the
+  // words don't have to be adjacent or complete. A plain `contains` on the whole
+  // string couldn't, because "Shane Johnson" isn't a substring of that name.
   if (query.q && String(query.q).trim()) {
+    const searchFields = [
+      'caseNumber',
+      'suspectName',
+      'title',
+      'policeAgency',
+      'location',
+    ];
 
-    const q = String(query.q).trim();
+    // Cap the number of tokens so a pathological query can't explode the query.
+    const tokens = String(query.q)
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 10);
 
-    and.push({
-      OR: [
-        {
-          caseNumber: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          suspectName: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          title: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          policeAgency: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-        {
-          location: {
-            contains: q,
-            mode: 'insensitive',
-          },
-        },
-      ],
-    });
+    // One AND clause per word; within a word, OR across the searchable fields.
+    for (const token of tokens) {
+      and.push({
+        OR: searchFields.map((field) => ({
+          [field]: { contains: token, mode: 'insensitive' },
+        })),
+      });
+    }
   }
 
 
