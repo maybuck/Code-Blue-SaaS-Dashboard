@@ -76,6 +76,16 @@ export class CasesController {
     );
   }
 
+  // Clear the assigned researcher on several cases at once. Body: { caseIds }.
+  @Patch('bulk-unassign')
+  @Roles('MANAGER', 'OWNER')
+  async bulkUnassign(
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.cases.bulkUnassign(body?.caseIds, req.user);
+  }
+
    @Patch(':id/claim')
   async claimCase(
     @Param('id', ParseIntPipe) id: number,

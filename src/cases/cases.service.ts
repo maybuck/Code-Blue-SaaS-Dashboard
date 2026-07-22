@@ -2339,4 +2339,68 @@ try {
     data: updated,
   };
 }
+
+  // =========================
+  // BULK UNASSIGN
+  // Clears the assigned researcher on several cases at once. Only touches cases
+  // that currently have someone assigned (already-unassigned ones are skipped),
+  // and logs the change on each case's timeline.
+  // =========================
+  async bulkUnassign(caseIds: any, user: any) {
+    const ids = Array.isArray(caseIds)
+      ? [...new Set(caseIds.map(Number).filter((n) => !Number.isNaN(n)))]
+      : [];
+
+    if (ids.length === 0) {
+      throw new BadRequestException('No cases selected');
+    }
+
+    const cases = await this.prisma.case.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, assignedToId: true },
+    });
+
+    // Only cases that actually have an assignee need clearing.
+    const toClear = cases.filter((c) => c.assignedToId != null);
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { firstName: true, lastName: true },
+    });
+    const actorName = actor
+      ? `${actor.firstName} ${actor.lastName}`.trim()
+      : 'Unknown User';
+
+    if (toClear.length === 0) {
+      return {
+        success: true,
+        message: 'No assigned cases to unassign',
+        unassignedCount: 0,
+      };
+    }
+
+    const clearIds = toClear.map((c) => c.id);
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.case.updateMany({
+        where: { id: { in: clearIds } },
+        data: { assignedToId: null },
+      });
+
+      await tx.caseActivity.createMany({
+        data: clearIds.map((id) => ({
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_ASSIGNED',
+          message: `Case unassigned by ${actorName}`,
+        })),
+      });
+    });
+
+    return {
+      success: true,
+      message: `${clearIds.length} case${clearIds.length === 1 ? '' : 's'} unassigned successfully`,
+      unassignedCount: clearIds.length,
+    };
+  }
 }
