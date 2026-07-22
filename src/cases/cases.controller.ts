@@ -189,4 +189,26 @@ export class CasesController {
   ) {
     return this.cases.markMediaUploaded(id, req.user, file);
   }
+
+  // =========================
+  // AI ANALYSIS — persist a result produced by the web app's analyze route.
+  // =========================
+  @Post(':id/analysis')
+  @Permissions('case.read.own', 'case.read.all')
+  saveAnalysis(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.cases.saveAnalysis(id, body, req.user);
+  }
+
+  @Delete('analysis/:analysisId')
+  @Permissions('case.update.own', 'case.update.all')
+  deleteAnalysis(
+    @Param('analysisId', ParseIntPipe) analysisId: number,
+    @Request() req: any,
+  ) {
+    return this.cases.deleteAnalysis(analysisId, req.user);
+  }
 }

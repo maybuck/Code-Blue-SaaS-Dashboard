@@ -1248,6 +1248,14 @@ if (
         // =========================
         media: true,
 
+        // AI report analyses, newest first.
+        analyses: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            createdBy: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+
         // =========================
         // DUPLICATE RELATION
         // =========================
@@ -2355,6 +2363,71 @@ try {
     data: updated,
   };
 }
+
+  // =========================
+  // AI ANALYSIS
+  // Persist an analysis produced by the Next.js /api/analyze-report route. The
+  // OpenAI call happens there (so the key stays server-side in the web app);
+  // this just records the result on the case.
+  // =========================
+  async saveAnalysis(caseId: number, dto: any, user: any) {
+    const caseItem = await this.prisma.case.findUnique({
+      where: { id: caseId },
+      select: { id: true },
+    });
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
+    }
+
+    const result = (dto?.result ?? '').toString().trim();
+    if (!result) {
+      throw new BadRequestException('Analysis result is required');
+    }
+
+    const analysis = await this.prisma.caseAnalysis.create({
+      data: {
+        caseId,
+        fileUrl: dto.fileUrl ?? null,
+        fileName: dto.fileName ?? null,
+        model: dto.model ?? null,
+        overallRating: dto.overallRating ?? null,
+        result,
+        createdById: user.sub,
+      },
+      include: {
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    const actor = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { firstName: true, lastName: true },
+    });
+    await this.prisma.caseActivity.create({
+      data: {
+        caseId,
+        userId: user.sub,
+        type: 'CASE_UPDATED',
+        message: `AI analysis run${dto.fileName ? ` on ${dto.fileName}` : ''} by ${
+          actor ? `${actor.firstName} ${actor.lastName}` : 'a user'
+        }`,
+      },
+    });
+
+    return { success: true, message: 'Analysis saved', data: analysis };
+  }
+
+  async deleteAnalysis(analysisId: number, user: any) {
+    const found = await this.prisma.caseAnalysis.findUnique({
+      where: { id: analysisId },
+      select: { id: true },
+    });
+    if (!found) {
+      throw new NotFoundException('Analysis not found');
+    }
+    await this.prisma.caseAnalysis.delete({ where: { id: analysisId } });
+    return { success: true, message: 'Analysis deleted' };
+  }
 
   // =========================
   // BULK UNASSIGN
