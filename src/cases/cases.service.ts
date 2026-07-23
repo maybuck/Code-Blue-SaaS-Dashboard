@@ -1266,6 +1266,15 @@ if (
           },
         },
 
+        // Who moved the case to Trash, for the in-Trash banner.
+        deletedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+
         // =========================
         // STATUS
         // =========================
