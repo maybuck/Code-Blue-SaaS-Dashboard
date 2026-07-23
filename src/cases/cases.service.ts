@@ -1478,6 +1478,29 @@ try {
     // this field existed). Bypasses the normal transition rules by design.
     if (dto.restore && oldStatusKey === 'VOIDED') {
       let targetId = caseItem.preVoidStatusId ?? null;
+
+      // Fallback for cases voided before preVoidStatusId was recorded: read the
+      // most recent "Status changed from X to VOIDED" entry off the timeline and
+      // restore to X.
+      if (!targetId) {
+        const voidLog = await this.prisma.caseActivity.findFirst({
+          where: {
+            caseId: id,
+            type: 'STATUS_CHANGED',
+            message: { contains: 'to VOIDED' },
+          },
+          orderBy: { createdAt: 'desc' },
+        });
+        const fromKey = voidLog?.message?.match(/from\s+(\w+)\s+to\s+VOIDED/i)?.[1];
+        if (fromKey) {
+          const prev = await this.prisma.status.findUnique({
+            where: { key: fromKey.toUpperCase() },
+          });
+          targetId = prev?.id ?? null;
+        }
+      }
+
+      // Last resort: Approved (the original behavior).
       if (!targetId) {
         const approved = await this.prisma.status.findUnique({
           where: { key: 'APPROVED' },
