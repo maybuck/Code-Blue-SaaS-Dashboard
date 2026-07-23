@@ -171,6 +171,11 @@ model Case {
   editorStatusId      Int?
   editorStatus        Status?   @relation("CaseEditorStatus", fields: [editorStatusId], references: [id])
 
+  // The status the case held immediately before it was voided, so "Restore"
+  // can return it to where it was rather than a fixed stage.
+  preVoidStatusId     Int?
+  preVoidStatus       Status?   @relation("CasePreVoidStatus", fields: [preVoidStatusId], references: [id])
+
   editorPaid          Boolean   @default(false)
   editorPaidDate      DateTime?
 
@@ -275,9 +280,10 @@ model Status {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
- cases  Case[] 
+ cases  Case[]
   scriptCases Case[] @relation("CaseScriptStatus")
  editorCases Case[] @relation("CaseEditorStatus")
+  preVoidCases Case[] @relation("CasePreVoidStatus")
 
   @@map("statuses")
 }

@@ -1250,6 +1250,9 @@ if (
         // =========================
         status: true,
 
+        // The status a voided case would restore to (label the Restore button).
+        preVoidStatus: { select: { id: true, key: true, label: true } },
+
         // =========================
         // MEDIA
         // =========================
@@ -1469,7 +1472,24 @@ try {
     // =========================
     let statusData: any = {};
 
-    if (dto.statusId && dto.statusId !== caseItem.statusId) {
+    // RESTORE a voided case to the status it held before it was voided. The
+    // client sends { restore: true } (no statusId). Falls back to APPROVED if we
+    // don't have a recorded pre-void status (e.g. legacy cases voided before
+    // this field existed). Bypasses the normal transition rules by design.
+    if (dto.restore && oldStatusKey === 'VOIDED') {
+      let targetId = caseItem.preVoidStatusId ?? null;
+      if (!targetId) {
+        const approved = await this.prisma.status.findUnique({
+          where: { key: 'APPROVED' },
+        });
+        targetId = approved?.id ?? null;
+      }
+      if (!targetId) {
+        throw new BadRequestException('No status is available to restore this case to.');
+      }
+      statusData.statusId = targetId;
+      statusData.preVoidStatusId = null; // consumed
+    } else if (dto.statusId && dto.statusId !== caseItem.statusId) {
       const newStatus = await this.prisma.status.findUnique({
         where: { id: Number(dto.statusId) },
       });
@@ -1488,6 +1508,11 @@ try {
 
       statusData.statusId = newStatus.id;
 
+      // Voiding: remember where the case was so it can be restored there later.
+      if (newStatus.key === 'VOIDED' && oldStatusKey && oldStatusKey !== 'VOIDED') {
+        statusData.preVoidStatusId = caseItem.statusId;
+      }
+
       if (newStatus.key === 'COMPLETED') {
         statusData.dateCompleted = new Date();
       } else if (oldStatusKey === 'COMPLETED') {
@@ -1495,7 +1520,8 @@ try {
       }
     }
 
-    const { note: incomingNote, assigneeIds,media, ...caseData } = dto;
+    // `restore` is a control flag, not a column — keep it out of the spread.
+    const { note: incomingNote, assigneeIds, media, restore: _restore, ...caseData } = dto;
 
     // =========================
     // ASSIGNEES
