@@ -6,6 +6,12 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  computeDuplicateIds,
+  namesAreSimilar,
+  nameTokens,
+  incidentDayKey,
+} from 'src/common/name-match';
 
 // Allowed status transitions. Keep in sync with the frontend (lib/workflow.js).
 // VOIDED is reachable from any open status; COMPLETED and VOIDED are terminal.
@@ -397,17 +403,35 @@ export class CasesService {
     // "possible duplicate" alert can name it and link straight to it.
     let duplicateOf: any = null;
 
-    if (data.suspectName) {
-      const existingCase = await this.prisma.case.findFirst({
+    if (data.suspectName && nameTokens(data.suspectName).length) {
+      // Narrow candidates cheaply: same incident day (the client wants the date
+      // factored in) and sharing at least one name token, then fuzzy-match in
+      // memory so middle names / spelling / punctuation still link correctly.
+      const tokens = nameTokens(data.suspectName);
+      const newDay = incidentDayKey(data.incidentDate);
+
+      const candidates = await this.prisma.case.findMany({
         where: {
-          suspectName: {
-            equals: data.suspectName.trim(),
-            mode: 'insensitive',
-          },
           isDuplicate: false,
           notDuplicate: false,
+          // Require the same incident date when the new case has one.
+          ...(data.incidentDate
+            ? { incidentDate: new Date(data.incidentDate) }
+            : {}),
+          // Any candidate must share a name token (first or last) to be worth
+          // comparing — keeps the fuzzy comparison bounded.
+          OR: [
+            { suspectName: { contains: tokens[0], mode: 'insensitive' } },
+            {
+              suspectName: {
+                contains: tokens[tokens.length - 1],
+                mode: 'insensitive',
+              },
+            },
+          ],
         },
         orderBy: { createdAt: 'asc' },
+        take: 100,
         select: {
           id: true,
           caseNumber: true,
@@ -418,10 +442,18 @@ export class CasesService {
         },
       });
 
-      if (existingCase) {
+      const match = candidates.find(
+        (c) =>
+          namesAreSimilar(c.suspectName, data.suspectName) &&
+          // If the new case has no date, don't require one; otherwise the query
+          // already constrained to the same day.
+          (!newDay || incidentDayKey(c.incidentDate) === newDay),
+      );
+
+      if (match) {
         isDuplicate = true;
-        duplicateOfId = existingCase.id;
-        duplicateOf = existingCase;
+        duplicateOfId = match.id;
+        duplicateOf = match;
       }
     }
 
@@ -940,54 +972,31 @@ if (Array.isArray(data.media) && data.media.length > 0) {
   const wantDuplicatesOnly =
     query.duplicatesOnly === 'true' || query.duplicatesOnly === true;
 
-  const dupKey = (name?: string | null, date?: Date | string | null) =>
-    `${(name || '').trim().toLowerCase()}|${date ? new Date(date).toISOString() : ''}`;
-
-  let dupSet = new Set<string>();
-  let duplicateGroups: Array<{
-    suspectName: string | null;
-    incidentDate: Date | null;
-  }> = [];
-
+  // Fuzzy duplicate detection (see src/common/name-match.ts): two cases are a
+  // possible duplicate when they share the same incident DAY and their suspect
+  // names match despite middle names, punctuation, accents or minor spelling
+  // differences. Computed over a lightweight full-table select so it's correct
+  // regardless of the current page/filters, then used to (a) stamp isDuplicate
+  // and (b) narrow the query when duplicatesOnly=true.
+  let dupIdSet = new Set<number>();
   try {
-    duplicateGroups = (await this.prisma.case.groupBy({
-      by: ['suspectName', 'incidentDate'],
-      where: {
-        suspectName: { not: null },
-        incidentDate: { not: null },
-        // Cases a user has explicitly marked "Not a duplicate" are excluded
-        // from counting. That both un-flags the dismissed case AND un-flags the
-        // case it was matched against once the group drops back to one member,
-        // which is the point of the override.
-        notDuplicate: false,
+    const all = await this.prisma.case.findMany({
+      select: {
+        id: true,
+        suspectName: true,
+        incidentDate: true,
+        notDuplicate: true,
       },
-      _count: { id: true },
-      having: { id: { _count: { gt: 1 } } },
-    })) as any;
-
-    dupSet = new Set(
-      duplicateGroups
-        .filter((g) => g.suspectName && g.suspectName.trim())
-        .map((g) => dupKey(g.suspectName, g.incidentDate)),
-    );
+    });
+    dupIdSet = computeDuplicateIds(all as any);
   } catch {
-    duplicateGroups = [];
-    dupSet = new Set();
+    dupIdSet = new Set();
   }
 
   if (wantDuplicatesOnly) {
     and.push(
-      duplicateGroups.length
-        ? {
-            // A group can still have 2+ members after one is dismissed, so the
-            // dismissed case must be excluded here as well or it would reappear
-            // in the Duplicates-only list.
-            notDuplicate: false,
-            OR: duplicateGroups.map((g) => ({
-              suspectName: g.suspectName,
-              incidentDate: g.incidentDate,
-            })),
-          }
+      dupIdSet.size
+        ? { id: { in: [...dupIdSet] } }
         : { id: { in: [] } }, // no duplicates exist -> match nothing
     );
   }
@@ -1156,15 +1165,13 @@ if (
     orderBy
   });
 
-  // Stamp the duplicate flag using `dupSet`, already built above from the single
-  // groupBy. No extra query, and no second in-memory filter: when
-  // duplicatesOnly=true the where clause has already narrowed the result set.
+  // Stamp the duplicate flag using `dupIdSet`, already computed above from the
+  // fuzzy full-table scan. When duplicatesOnly=true the where clause has already
+  // narrowed the result set, so there's no second in-memory filter here.
   const data: any[] = cases.map((c) => ({
     ...c,
     // An explicit "Not a duplicate" override always wins over detection.
-    isDuplicate: c.notDuplicate
-      ? false
-      : dupSet.has(dupKey(c.suspectName, c.incidentDate)),
+    isDuplicate: c.notDuplicate ? false : dupIdSet.has(c.id),
   }));
 
   return {
@@ -1325,25 +1332,32 @@ if (
 
 try {
   const name = (caseItem.suspectName || '').trim();
+  const tokens = nameTokens(name);
+  const day = incidentDayKey(caseItem.incidentDate);
 
   // A case marked "Not a duplicate" shouldn't show duplicate suggestions at
   // all, and dismissed cases shouldn't be suggested against others either.
-  if (name && !caseItem.notDuplicate) {
-    possibleDuplicates = await this.prisma.case.findMany({
+  if (tokens.length && !caseItem.notDuplicate) {
+    // Pull a bounded candidate set — same incident day (when known) and sharing
+    // a name token — then fuzzy-filter so middle names / spelling / punctuation
+    // variants are surfaced too.
+    const candidates = await this.prisma.case.findMany({
       where: {
         id: { not: caseItem.id },
         notDuplicate: false,
-
-        suspectName: {
-          equals: name,
-          mode: 'insensitive',
-        },
-
-        incidentDate: caseItem.incidentDate
-          ? caseItem.incidentDate
-          : undefined,
+        ...(caseItem.incidentDate
+          ? { incidentDate: caseItem.incidentDate }
+          : {}),
+        OR: [
+          { suspectName: { contains: tokens[0], mode: 'insensitive' } },
+          {
+            suspectName: {
+              contains: tokens[tokens.length - 1],
+              mode: 'insensitive',
+            },
+          },
+        ],
       },
-
       select: {
         id: true,
         caseNumber: true,
@@ -1351,20 +1365,20 @@ try {
         incidentDate: true,
         status: true,
         createdBy: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
+          select: { id: true, firstName: true, lastName: true },
         },
       },
-
-      orderBy: {
-        createdAt: 'desc',
-      },
-
-      take: 25,
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
+
+    possibleDuplicates = candidates
+      .filter(
+        (c) =>
+          namesAreSimilar(c.suspectName, name) &&
+          (!day || incidentDayKey(c.incidentDate) === day),
+      )
+      .slice(0, 25);
   }
 
 } catch {
