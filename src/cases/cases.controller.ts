@@ -135,11 +135,42 @@ export class CasesController {
     @Body() body: any,
     @Request() req: any,
   ) {
-    return this.cases.bulkDelete(body?.caseIds, req.user);
+    // permanent=true removes for good (Trash view); default soft-deletes.
+    return this.cases.bulkDelete(body?.caseIds, req.user, body?.permanent === true);
+  }
+
+  // Restore several cases out of Trash. Body: { caseIds: number[] }.
+  @Post('bulk-restore')
+  @Permissions('case.delete')
+  bulkRestore(
+    @Body() body: any,
+    @Request() req: any,
+  ) {
+    return this.cases.bulkRestore(body?.caseIds, req.user);
+  }
+
+  // Restore one case out of Trash.
+  @Patch(':id/restore')
+  @Permissions('case.delete')
+  restoreFromTrash(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    return this.cases.restoreFromTrash(id, req.user);
+  }
+
+  // Permanently delete one case (irreversible).
+  @Delete(':id/permanent')
+  @Permissions('case.delete')
+  permanentDelete(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
+    return this.cases.permanentDelete(id, req.user);
   }
 
   // Owners (researchers) may delete their own cases; managers/admins any case.
-  // The service enforces the owner-or-manager rule.
+  // The service enforces the owner-or-manager rule. Soft-deletes to Trash.
   @Delete(':id')
   @Permissions('case.update.own', 'case.update.all', 'case.delete')
   remove(

@@ -930,6 +930,14 @@ if (Array.isArray(data.media) && data.media.length > 0) {
   const and: any[] = [];
 
   // =========================
+  // TRASH FILTER (soft delete)
+  // By default only live cases are returned. `trash=true` returns ONLY the
+  // deleted (trashed) cases, for the Trash view.
+  // =========================
+  const wantTrash = query.trash === 'true' || query.trash === true;
+  where.deletedAt = wantTrash ? { not: null } : null;
+
+  // =========================
   // MINE FILTER
   // =========================
   if (query.mine === 'true' || query.mine === true) {
@@ -981,6 +989,7 @@ if (Array.isArray(data.media) && data.media.length > 0) {
   let dupIdSet = new Set<number>();
   try {
     const all = await this.prisma.case.findMany({
+      where: { deletedAt: null }, // trashed cases don't count toward duplicates
       select: {
         id: true,
         suspectName: true,
@@ -1077,6 +1086,15 @@ if (
         },
       },
 
+      // Who moved the case to Trash (shown in the Trash view).
+      deletedBy: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+
 
       assignedTo: {
         select: {
@@ -1156,6 +1174,9 @@ if (
 
 
       status: true,
+
+      // For the Voided Cases list's "Restore to <status>" label.
+      preVoidStatus: { select: { id: true, key: true, label: true } },
 
 
       media: true,
@@ -1834,28 +1855,100 @@ try {
   }
 
   // =========================
-  // DELETE CASE
+  // DELETE CASE (soft delete -> Trash)
+  // Moves the case to Trash rather than removing it, so it can be restored.
   // =========================
   async delete(id: number, user: any) {
     if (!user.permissions?.includes('case.delete')) {
       throw new ForbiddenException('You cannot delete cases');
     }
 
-    const caseItem = await this.prisma.case.findUnique({
-      where: { id },
-    });
-
+    const caseItem = await this.prisma.case.findUnique({ where: { id } });
     if (!caseItem) {
       throw new NotFoundException('Case not found');
     }
 
-    await this.prisma.case.delete({
+    await this.prisma.case.update({
       where: { id },
+      data: { deletedAt: new Date(), deletedById: user.sub },
     });
 
+    await this.prisma.caseActivity
+      .create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_UPDATED',
+          message: 'Case moved to Trash',
+        },
+      })
+      .catch(() => null);
+
+    return { success: true, message: 'Case moved to Trash' };
+  }
+
+  // Restore a case out of Trash (clears the soft-delete marker). The case keeps
+  // whatever status it had when it was trashed.
+  async restoreFromTrash(id: number, user: any) {
+    if (!user.permissions?.includes('case.delete')) {
+      throw new ForbiddenException('You cannot restore cases');
+    }
+    const caseItem = await this.prisma.case.findUnique({ where: { id } });
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
+    }
+    await this.prisma.case.update({
+      where: { id },
+      data: { deletedAt: null, deletedById: null },
+    });
+    await this.prisma.caseActivity
+      .create({
+        data: {
+          caseId: id,
+          userId: user.sub,
+          type: 'CASE_UPDATED',
+          message: 'Case restored from Trash',
+        },
+      })
+      .catch(() => null);
+    return { success: true, message: 'Case restored from Trash' };
+  }
+
+  // Permanently remove a case (only meaningful from Trash). This is the real,
+  // irreversible delete.
+  async permanentDelete(id: number, user: any) {
+    if (!user.permissions?.includes('case.delete')) {
+      throw new ForbiddenException('You cannot delete cases');
+    }
+    const caseItem = await this.prisma.case.findUnique({ where: { id } });
+    if (!caseItem) {
+      throw new NotFoundException('Case not found');
+    }
+    // Detach any child duplicates so the self-FK doesn't block the delete.
+    await this.prisma.case.updateMany({
+      where: { duplicateOfId: id },
+      data: { duplicateOfId: null },
+    });
+    await this.prisma.case.delete({ where: { id } });
+    return { success: true, message: 'Case permanently deleted' };
+  }
+
+  async bulkRestore(caseIds: any, user: any) {
+    if (!user.permissions?.includes('case.delete')) {
+      throw new ForbiddenException('You cannot restore cases');
+    }
+    const ids = Array.isArray(caseIds)
+      ? [...new Set(caseIds.map(Number).filter((n) => !Number.isNaN(n)))]
+      : [];
+    if (!ids.length) throw new BadRequestException('No cases selected');
+    const res = await this.prisma.case.updateMany({
+      where: { id: { in: ids }, deletedAt: { not: null } },
+      data: { deletedAt: null, deletedById: null },
+    });
     return {
       success: true,
-      message: 'Case deleted successfully',
+      message: `${res.count} case${res.count === 1 ? '' : 's'} restored from Trash`,
+      restoredCount: res.count,
     };
   }
 
@@ -1866,7 +1959,9 @@ try {
   // delete. Any case that is referenced as another case's `duplicateOf` is
   // detached first so the foreign key doesn't block the delete.
   // =========================
-  async bulkDelete(caseIds: any, user: any) {
+  // `permanent=false` (default) soft-deletes to Trash; `permanent=true` removes
+  // the rows for good (used by the Trash view's "Delete permanently").
+  async bulkDelete(caseIds: any, user: any, permanent = false) {
     if (!user.permissions?.includes('case.delete')) {
       throw new ForbiddenException('You cannot delete cases');
     }
@@ -1879,7 +1974,7 @@ try {
       throw new BadRequestException('No cases selected');
     }
 
-    // Only delete rows that actually exist; report the rest back to the caller.
+    // Only act on rows that actually exist; report the rest back to the caller.
     const existing = await this.prisma.case.findMany({
       where: { id: { in: ids } },
       select: { id: true },
@@ -1896,26 +1991,33 @@ try {
       };
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      // Detach any child duplicates that point at a case being deleted, plus
-      // repoint nothing else — the deleted rows' own duplicateOf link goes away
-      // with them.
-      await tx.case.updateMany({
-        where: { duplicateOfId: { in: existingIds } },
-        data: { duplicateOfId: null },
+    const count = await this.prisma.$transaction(async (tx) => {
+      if (permanent) {
+        // Real delete: detach child duplicates first so the self-FK doesn't
+        // block, then remove the rows.
+        await tx.case.updateMany({
+          where: { duplicateOfId: { in: existingIds } },
+          data: { duplicateOfId: null },
+        });
+        const res = await tx.case.deleteMany({
+          where: { id: { in: existingIds } },
+        });
+        return res.count;
+      }
+      // Soft delete: move to Trash (recoverable).
+      const res = await tx.case.updateMany({
+        where: { id: { in: existingIds }, deletedAt: null },
+        data: { deletedAt: new Date(), deletedById: user.sub },
       });
-
-      const deleted = await tx.case.deleteMany({
-        where: { id: { in: existingIds } },
-      });
-
-      return deleted.count;
+      return res.count;
     });
 
     return {
       success: true,
-      message: `${result} case${result === 1 ? '' : 's'} deleted successfully`,
-      deletedCount: result,
+      message: permanent
+        ? `${count} case${count === 1 ? '' : 's'} permanently deleted`
+        : `${count} case${count === 1 ? '' : 's'} moved to Trash`,
+      deletedCount: count,
       missing,
     };
   }

@@ -36,6 +36,9 @@ editedCases  Case[] @relation("CaseEditor")
   // AI report analyses this user has run.
   caseAnalyses  CaseAnalysis[] @relation("AnalysisAuthor")
 
+  // Cases this user has moved to Trash (soft delete).
+  deletedCases  Case[] @relation("CaseDeletedBy")
+
   // Activity Timeline
   activities    CaseActivity[]
 
@@ -176,6 +179,12 @@ model Case {
   preVoidStatusId     Int?
   preVoidStatus       Status?   @relation("CasePreVoidStatus", fields: [preVoidStatusId], references: [id])
 
+  // Soft delete: a deleted case moves to Trash (recoverable) rather than being
+  // removed. deletedAt null = live; non-null = in Trash.
+  deletedAt           DateTime?
+  deletedById         Int?
+  deletedBy           User?     @relation("CaseDeletedBy", fields: [deletedById], references: [id])
+
   editorPaid          Boolean   @default(false)
   editorPaidDate      DateTime?
 
@@ -205,6 +214,7 @@ model Case {
   @@index([suspectName])
   @@index([duplicateOfId])
   @@index([agencyId])
+  @@index([deletedAt])
 
   @@map("cases")
 }
