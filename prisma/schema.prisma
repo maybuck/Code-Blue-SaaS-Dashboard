@@ -7,6 +7,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Simple key/value store for editable app configuration (e.g. the AI analysis
+// prompt), so settings can change without a code deploy.
+model AppSetting {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  value       String
+  updatedById Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
 
 model User {
   id            Int      @id @default(autoincrement())

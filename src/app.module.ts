@@ -10,6 +10,7 @@ import { StatusesModule } from './statuses/statuses.module';
 import { UploadModule } from './uploads/upload.module';
 import { CaseMediaModule } from './case-media/case-media.module';
 import { IncidentTypeModule } from './incident-type/incident-type.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { IncidentTypeModule } from './incident-type/incident-type.module';
     UploadModule,
     StatusesModule,
     CaseMediaModule,
-    IncidentTypeModule
+    IncidentTypeModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
